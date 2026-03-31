@@ -1,0 +1,34 @@
+---
+title: Despensinha ERP - Dev Docs
+description: Documentação técnica interna do sistema ERP Despensinha.
+template: splash
+hero:
+  tagline: Documentação técnica para desenvolvedores do Despensinha ERP.
+  actions:
+    - text: Stack Tecnológica
+      link: /introducao/tech-stack/
+      icon: right-arrow
+    - text: Estrutura do Projeto
+      link: /introducao/estrutura-do-projeto/
+      icon: open-book
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Documentação Técnica
+
+<CardGrid stagger>
+  <Card title="Arquitetura" icon="setting">
+    Roteamento por perfil de usuário e sistema de permissões CASL/RBAC.
+  </Card>
+  <Card title="Módulos Técnicos" icon="puzzle">
+    Autenticação JWT, tabelas, formulários e exportação de dados.
+  </Card>
+  <Card title="Funcionalidades" icon="document">
+    Filtros por URL, permissões, internacionalização e notificações.
+  </Card>
+  <Card title="Changelog" icon="list-format">
+    Histórico de versões e alterações do sistema.
+  </Card>
+</CardGrid>
