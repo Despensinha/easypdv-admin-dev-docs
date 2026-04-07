@@ -26,12 +26,13 @@ export default defineConfig({
         {
           label: 'Arquitetura',
           items: [
-            { label: 'Variáveis de Ambiente', slug: 'arquitetura/variaveis-ambiente' },
-            { label: 'Camada API', slug: 'arquitetura/camada-api' },
-            { label: 'Error Handling', slug: 'arquitetura/error-handling' },
-            { label: 'Modelos e DTOs', slug: 'arquitetura/modelos-dtos' },
             { label: 'Roteamento', slug: 'arquitetura/roteamento' },
             { label: 'RBAC (Permissões)', slug: 'arquitetura/rbac' },
+            { label: 'Variáveis de Ambiente', slug: 'arquitetura/variaveis-ambiente' },
+            { label: 'Camada API', slug: 'arquitetura/camada-api' },
+            { label: 'API e Endpoints', slug: 'arquitetura/api-endpoints' },
+            { label: 'Modelos e DTOs', slug: 'arquitetura/modelos-dtos' },
+            { label: 'Error Handling', slug: 'arquitetura/error-handling' },
           ],
         },
         {
@@ -41,6 +42,8 @@ export default defineConfig({
             { label: 'Tabelas', slug: 'modulos/tabelas' },
             { label: 'Formulários', slug: 'modulos/formularios' },
             { label: 'Exportação', slug: 'modulos/exportacao' },
+            { label: 'Hooks Customizados', slug: 'modulos/hooks' },
+            { label: 'Integrações', slug: 'modulos/integracoes' },
           ],
         },
         {
@@ -50,6 +53,14 @@ export default defineConfig({
             { label: 'Permissões', slug: 'funcionalidades/permissoes' },
             { label: 'Internacionalização', slug: 'funcionalidades/internacionalizacao' },
             { label: 'Notificações', slug: 'funcionalidades/notificacoes' },
+          ],
+        },
+        {
+          label: 'Infraestrutura',
+          items: [
+            { label: 'CI/CD', slug: 'infraestrutura/ci-cd' },
+            { label: 'Deploy', slug: 'infraestrutura/deploy' },
+            { label: 'Versionamento Runtime', slug: 'infraestrutura/versionamento-runtime' },
           ],
         },
         {
