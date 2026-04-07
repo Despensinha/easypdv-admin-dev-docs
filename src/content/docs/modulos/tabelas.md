@@ -68,3 +68,8 @@ const columns = [
   }),
 ];
 ```
+
+## Veja Também
+
+- [Hooks Customizados](/modulos/hooks/) — Detalhes do `useDataTableCleanup` e outros hooks de tabela
+- [Filtros por URL](/funcionalidades/filtros-url/) — Persistência de filtros na URL com nuqs

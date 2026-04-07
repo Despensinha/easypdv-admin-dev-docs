@@ -59,3 +59,9 @@ function MyComponent() {
   // currentUser.role, currentUser.name, etc.
 }
 ```
+
+## Veja Também
+
+- [Error Handling](/arquitetura/error-handling/) — Tratamento centralizado de erros, incluindo erros de autenticação
+- [API e Endpoints](/arquitetura/api-endpoints/) — Endpoints de autenticação (`/auth/login`, `/auth/refresh`)
+- [Hooks Customizados](/modulos/hooks/) — Outros hooks do sistema

@@ -46,3 +46,8 @@ Os subjects estão definidos em `src/app/casl/AbilityContext.tsx`. Exemplos:
 | `Client` | Cadastro de clientes |
 | `ManagerSpace` | Espaço do gestor |
 | `AccountantSpace` | Espaço do contador |
+
+## Veja Também
+
+- [RBAC (Permissões)](/arquitetura/rbac/) — Configuração das abilities por perfil de usuário
+- [Roteamento](/arquitetura/roteamento/) — Proteção de rotas com `AbilityProtectedRoute`

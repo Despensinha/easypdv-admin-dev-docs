@@ -51,3 +51,8 @@ import { ExportButtons } from '../modules/export';
   onExportCSV={() => exportToCSV({ ... })}
 />
 ```
+
+## Veja Também
+
+- [Integrações](/modulos/integracoes/) — Detalhes das bibliotecas jsPDF e XLSX
+- [Hooks Customizados](/modulos/hooks/) — Hook de reordenação de colunas com @dnd-kit no ExportModal

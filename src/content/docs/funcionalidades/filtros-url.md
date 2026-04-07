@@ -60,3 +60,8 @@ function ClientFilters() {
 ```
 
 Os filtros são passados como parâmetros para `useDataTable` → `fetchFn`.
+
+## Veja Também
+
+- [Hooks Customizados](/modulos/hooks/) — Hook `useSearchHotkeys` para atalhos de teclado nos filtros
+- [Tabelas](/modulos/tabelas/) — Integração dos filtros com `useDataTable`

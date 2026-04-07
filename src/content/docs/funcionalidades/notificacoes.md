@@ -44,3 +44,8 @@ try {
 ## Central de Notificações
 
 Além dos toasts, o sistema tem uma central de notificações em `/notificacao` que exibe notificações persistentes do servidor. Os componentes estão em `src/app/modules/notifications/`.
+
+## Veja Também
+
+- [Error Handling](/arquitetura/error-handling/) — Padrões de tratamento de erros que disparam notificações
+- [API e Endpoints](/arquitetura/api-endpoints/) — Endpoints de notificação do servidor

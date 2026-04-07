@@ -51,3 +51,8 @@ import { FormattedMessage } from 'react-intl';
 
 <FormattedMessage id="client.form.name.label" />
 ```
+
+## Veja Também
+
+- [Integrações](/modulos/integracoes/) — Bibliotecas de formatação (dayjs, luxon, react-number-format)
+- [Variáveis de Ambiente](/arquitetura/variaveis-ambiente/) — Configuração de locale padrão
