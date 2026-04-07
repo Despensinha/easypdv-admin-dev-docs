@@ -1,0 +1,93 @@
+---
+// src/components/VersionSelect.astro
+import { versions } from '../config/versions';
+
+const currentPath = Astro.url.pathname;
+const currentVersion = versions.find(v => currentPath.includes(`/${v.slug}/`))?.slug || 'latest';
+---
+
+<starlight-version-select>
+  <label>
+    <span class="sr-only">Versao</span>
+    <select autocomplete="off" value={currentVersion}>
+      {versions.map(v => (
+        <option value={v.slug} selected={v.slug === currentVersion}>
+          {v.badge ? `★ ${v.label}` : v.label}
+        </option>
+      ))}
+    </select>
+  </label>
+</starlight-version-select>
+
+<style>
+  starlight-version-select {
+    display: flex;
+    align-items: center;
+  }
+
+  label {
+    --sl-select-width: 8.5em;
+    display: flex;
+    align-items: center;
+    gap: 0.25em;
+    color: var(--sl-color-gray-1);
+  }
+
+  select {
+    border: 0;
+    padding-inline: 0.5em;
+    padding-block: 0.4em;
+    width: var(--sl-select-width);
+    background-color: var(--sl-color-black);
+    color: inherit;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    font-size: var(--sl-text-xs);
+    border-radius: 0.25rem;
+    border: 1px solid var(--sl-color-gray-5);
+  }
+
+  option {
+    background-color: var(--sl-color-bg-nav);
+    color: var(--sl-color-gray-1);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+</style>
+
+<script>
+  class StarlightVersionSelect extends HTMLElement {
+    constructor() {
+      super();
+      const select = this.querySelector('select');
+      if (select) {
+        select.addEventListener('change', (e) => {
+          const target = e.currentTarget as HTMLSelectElement;
+          const newVersion = target.value;
+          const path = window.location.pathname;
+          // Replace version segment in URL path
+          const versionPattern = /\/(latest|v[\d.-]+)\//;
+          if (versionPattern.test(path)) {
+            const newPath = path.replace(versionPattern, `/${newVersion}/`);
+            window.location.pathname = newPath;
+          } else {
+            // Not in a versioned path, go to version root
+            window.location.pathname = `/${newVersion}/introducao/`;
+          }
+        });
+      }
+    }
+  }
+  customElements.define('starlight-version-select', StarlightVersionSelect);
+</script>

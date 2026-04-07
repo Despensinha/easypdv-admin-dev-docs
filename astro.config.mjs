@@ -2,7 +2,19 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
-// https://astro.build/config
+// Helper to generate sidebar items for a version
+function versionSidebar(version) {
+  return [
+    { label: 'Introducao', autogenerate: { directory: `${version}/introducao` } },
+    { label: 'Arquitetura', autogenerate: { directory: `${version}/arquitetura` } },
+    { label: 'Modulos', autogenerate: { directory: `${version}/modulos` } },
+    { label: 'Funcionalidades', autogenerate: { directory: `${version}/funcionalidades` } },
+    { label: 'Infraestrutura', autogenerate: { directory: `${version}/infraestrutura` } },
+    { label: 'Changelog', autogenerate: { directory: `${version}/changelog` } },
+    { label: 'Versionamento', autogenerate: { directory: `${version}/versionamento` } },
+  ];
+}
+
 export default defineConfig({
   integrations: [
     starlight({
@@ -10,64 +22,24 @@ export default defineConfig({
       defaultLocale: 'root',
       locales: {
         root: {
-          label: 'Português',
+          label: 'Portugues',
           lang: 'pt-BR',
         },
       },
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/Despensinha' }],
+      components: {
+        Header: './src/components/Header.astro',
+      },
       sidebar: [
         {
-          label: 'Introdução',
-          items: [
-            { label: 'Stack Tecnológica', slug: 'introducao/tech-stack' },
-            { label: 'Estrutura do Projeto', slug: 'introducao/estrutura-do-projeto' },
-          ],
+          label: 'latest',
+          collapsed: true,
+          items: versionSidebar('latest'),
         },
         {
-          label: 'Arquitetura',
-          items: [
-            { label: 'Roteamento', slug: 'arquitetura/roteamento' },
-            { label: 'RBAC (Permissões)', slug: 'arquitetura/rbac' },
-            { label: 'Variáveis de Ambiente', slug: 'arquitetura/variaveis-ambiente' },
-            { label: 'Camada API', slug: 'arquitetura/camada-api' },
-            { label: 'API e Endpoints', slug: 'arquitetura/api-endpoints' },
-            { label: 'Modelos e DTOs', slug: 'arquitetura/modelos-dtos' },
-            { label: 'Error Handling', slug: 'arquitetura/error-handling' },
-          ],
-        },
-        {
-          label: 'Módulos',
-          items: [
-            { label: 'Autenticação', slug: 'modulos/autenticacao' },
-            { label: 'Tabelas', slug: 'modulos/tabelas' },
-            { label: 'Formulários', slug: 'modulos/formularios' },
-            { label: 'Exportação', slug: 'modulos/exportacao' },
-            { label: 'Hooks Customizados', slug: 'modulos/hooks' },
-            { label: 'Integrações', slug: 'modulos/integracoes' },
-          ],
-        },
-        {
-          label: 'Funcionalidades',
-          items: [
-            { label: 'Filtros por URL', slug: 'funcionalidades/filtros-url' },
-            { label: 'Permissões', slug: 'funcionalidades/permissoes' },
-            { label: 'Internacionalização', slug: 'funcionalidades/internacionalizacao' },
-            { label: 'Notificações', slug: 'funcionalidades/notificacoes' },
-          ],
-        },
-        {
-          label: 'Infraestrutura',
-          items: [
-            { label: 'CI/CD', slug: 'infraestrutura/ci-cd' },
-            { label: 'Deploy', slug: 'infraestrutura/deploy' },
-            { label: 'Versionamento Runtime', slug: 'infraestrutura/versionamento-runtime' },
-          ],
-        },
-        {
-          label: 'Changelog',
-          items: [
-            { label: 'Histórico de Versões', slug: 'changelog' },
-          ],
+          label: 'v1-27-1',
+          collapsed: true,
+          items: versionSidebar('v1-27-1'),
         },
       ],
     }),

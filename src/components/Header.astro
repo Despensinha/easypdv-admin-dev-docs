@@ -1,0 +1,69 @@
+---
+// src/components/Header.astro
+import type { Props } from '@astrojs/starlight/props';
+import Default from '@astrojs/starlight/components/Header.astro';
+import VersionSelect from './VersionSelect.astro';
+---
+
+<Default {...Astro.props}><slot /></Default>
+<div class="version-select-wrapper">
+  <VersionSelect />
+</div>
+
+<style>
+  .version-select-wrapper {
+    position: absolute;
+    right: var(--sl-nav-pad-x);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+  }
+</style>
+
+<script>
+  // Move version select into the header's right-group area for better alignment
+  function positionVersionSelect() {
+    const wrapper = document.querySelector('.version-select-wrapper');
+    const header = document.querySelector('header.header');
+    const rightGroup = header?.querySelector('.right-group');
+    if (wrapper && rightGroup) {
+      rightGroup.prepend(wrapper);
+      (wrapper as HTMLElement).style.position = 'relative';
+      (wrapper as HTMLElement).style.right = 'auto';
+      (wrapper as HTMLElement).style.top = 'auto';
+      (wrapper as HTMLElement).style.transform = 'none';
+    }
+  }
+
+  // Sidebar version scoping - hide non-current version group, expand current
+  function scopeSidebar() {
+    const path = window.location.pathname;
+    const isV1271 = path.includes('/v1-27-1/');
+    const currentVersion = isV1271 ? 'v1-27-1' : 'latest';
+    const hideVersion = isV1271 ? 'latest' : 'v1-27-1';
+
+    // Find top-level sidebar groups
+    const sidebarGroups = document.querySelectorAll('nav.sidebar details');
+    sidebarGroups.forEach(group => {
+      const summary = group.querySelector('summary');
+      if (summary) {
+        const text = summary.textContent?.trim();
+        if (text === hideVersion) {
+          (group as HTMLElement).style.display = 'none';
+        } else if (text === currentVersion) {
+          (group as HTMLElement).style.display = '';
+          group.setAttribute('open', '');
+          // Hide the version label group header so inner sections show directly
+          summary.style.display = 'none';
+        }
+      }
+    });
+  }
+
+  positionVersionSelect();
+  scopeSidebar();
+  document.addEventListener('astro:page-load', () => {
+    positionVersionSelect();
+    scopeSidebar();
+  });
+</script>
