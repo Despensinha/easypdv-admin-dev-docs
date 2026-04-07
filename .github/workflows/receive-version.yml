@@ -1,0 +1,45 @@
+name: Receive Version Update
+
+on:
+  repository_dispatch:
+    types: [docs-version-update]
+
+permissions:
+  contents: read
+
+jobs:
+  receive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log received payload
+        run: |
+          echo "## Version Update Received" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **App Version:** ${{ github.event.client_payload.app_version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Docs Version:** ${{ github.event.client_payload.docs_version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Tag:** ${{ github.event.client_payload.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Source Repo:** ${{ github.event.client_payload.source_repo }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Changes Summary:** ${{ github.event.client_payload.changes_summary }}" >> "$GITHUB_STEP_SUMMARY"
+
+      # TODO: Atualizacao de conteudo via IA
+      # Quando implementado (v2), este step vai:
+      # 1. Receber changes_summary do payload (diff das mudancas do ERP)
+      # 2. Analisar quais paginas em src/content/docs/latest/ precisam ser atualizadas
+      # 3. Usar IA para atualizar o conteudo das paginas afetadas
+      # 4. Criar commit com as mudancas
+      #
+      # - name: AI content update
+      #   if: github.event.client_payload.changes_summary != ''
+      #   run: |
+      #     echo "Processing changes_summary for AI-driven content update..."
+      #     # Analyze diffs and update latest/ pages
+
+      # TODO: Criacao de snapshot automatico
+      # Quando implementado (v2), este step vai:
+      # 1. Executar scripts/create-snapshot.sh com a nova versao
+      # 2. Criar snapshot da versao atual de latest/
+      # 3. Criar commit e PR com o snapshot
+      #
+      # - name: Create version snapshot
+      #   run: |
+      #     bash scripts/create-snapshot.sh "${{ github.event.client_payload.docs_version }}"
