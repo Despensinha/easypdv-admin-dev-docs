@@ -54,3 +54,8 @@ Se o usuário não tiver a permissão `read NfeOut`, é redirecionado para `/403
 2. Adicione a rota no arquivo de rotas do perfil correto (`SystemUserRoutes.tsx`, etc.)
 3. Se a rota precisar de proteção CASL, envolva com `AbilityProtectedRoute`
 4. Adicione a ability correspondente em `src/app/casl/AbilityContext.tsx`
+
+## Veja Também
+
+- [API e Endpoints](/arquitetura/api-endpoints/) — Catálogo completo dos endpoints consumidos por cada rota
+- [Error Handling](/arquitetura/error-handling/) — Tratamento de erros nas chamadas de API das rotas

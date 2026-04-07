@@ -57,12 +57,17 @@ description: Tecnologias e bibliotecas utilizadas no Despensinha ERP.
 | jwt-decode | 4.0 | Decodificação de tokens JWT |
 | @react-oauth/google | 0.12 | Login com Google OAuth |
 
-## Visualização
+## Visualização e Mapas
 
 | Biblioteca | Versão | Função |
 |-----------|--------|--------|
-| ApexCharts + react-apexcharts | 3.35 | Gráficos interativos |
-| Chart.js + react-chartjs-2 | 4.5 | Gráficos alternativos |
+| ApexCharts + react-apexcharts | 3.35 | Gráficos interativos (herdado do Metronic) |
+| Chart.js + react-chartjs-2 | 4.5 | Gráficos primários da aplicação |
+| Leaflet + react-leaflet | 1.9 | Mapas interativos |
+| @react-google-maps/api | 2.20 | Integração Google Maps |
+| Fabric.js | 6.9 | Canvas 2D (planograma) |
+
+Para detalhes de integração de cada biblioteca, veja [Integrações](/modulos/integracoes/).
 
 ## Exportação
 
@@ -83,6 +88,12 @@ description: Tecnologias e bibliotecas utilizadas no Despensinha ERP.
 |-----------|--------|--------|
 | dayjs | 1.11 | Manipulação de datas |
 | luxon | 3.7 | Timezone support |
-| @dnd-kit | — | Drag-and-drop |
+| @dnd-kit | 6.3 | Drag-and-drop (reordenação de colunas no ExportModal) |
 | jsbarcode | 3.12 | Geração de códigos de barras |
 | react-toastify | 11.0 | Notificações toast |
+| react-dropzone | 14.2 | Upload de arquivos via drag-and-drop |
+| react-select | 5.8 | Select avançado com busca |
+| react-number-format | 5.4 | Formatação de inputs numéricos |
+| lz-string | 1.5 | Compressão de strings (cache de filtros) |
+
+Para detalhes sobre hooks customizados que encapsulam essas bibliotecas, veja [Hooks Customizados](/modulos/hooks/).

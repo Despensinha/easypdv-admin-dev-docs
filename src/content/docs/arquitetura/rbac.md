@@ -64,3 +64,8 @@ Ver [Roteamento](../roteamento/) — `AbilityProtectedRoute` protege rotas intei
 1. Defina o novo subject como string em `AbilityContext.tsx`
 2. Adicione as abilities nos perfis que devem ter acesso
 3. Use `can('action', 'NovoSubject')` nos componentes ou `AbilityProtectedRoute` nas rotas
+
+## Veja Também
+
+- [Permissões](/funcionalidades/permissoes/) — Como o RBAC se aplica na prática nas telas do sistema
+- [Roteamento](/arquitetura/roteamento/) — Proteção de rotas com `AbilityProtectedRoute`
