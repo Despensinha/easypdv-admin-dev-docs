@@ -26,6 +26,10 @@ export default defineConfig({
         {
           label: 'Arquitetura',
           items: [
+            { label: 'Variáveis de Ambiente', slug: 'arquitetura/variaveis-ambiente' },
+            { label: 'Camada API', slug: 'arquitetura/camada-api' },
+            { label: 'Error Handling', slug: 'arquitetura/error-handling' },
+            { label: 'Modelos e DTOs', slug: 'arquitetura/modelos-dtos' },
             { label: 'Roteamento', slug: 'arquitetura/roteamento' },
             { label: 'RBAC (Permissões)', slug: 'arquitetura/rbac' },
           ],
