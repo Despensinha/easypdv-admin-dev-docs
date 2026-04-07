@@ -1,6 +1,8 @@
 ---
 title: Error Handling
 description: Padrões de tratamento de erros no Despensinha ERP com mapeamento de mensagens amigáveis.
+sidebar:
+  order: 7
 ---
 
 O ERP centraliza o tratamento de erros em `src/api/core/`, com mapeamento automático de erros Axios para mensagens amigáveis em pt-BR.

@@ -1,6 +1,8 @@
 ---
 title: Versionamento Runtime
 description: Sistema de verificacao de versao em tempo de execucao do Despensinha ERP.
+sidebar:
+  order: 3
 ---
 
 O Despensinha ERP possui um sistema de verificacao de versao em tempo de execucao que detecta quando uma nova versao e implantada e oferece ao usuario um hard refresh para carregar a versao mais recente.

@@ -1,6 +1,8 @@
 ---
 title: Stack Tecnológica
 description: Tecnologias e bibliotecas utilizadas no Despensinha ERP.
+sidebar:
+  order: 1
 ---
 
 ## Frontend

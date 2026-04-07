@@ -1,6 +1,8 @@
 ---
 title: Deploy
 description: Infraestrutura de deploy do Despensinha ERP.
+sidebar:
+  order: 2
 ---
 
 O Despensinha ERP e implantado via **Cloudflare Pages** integrado com **GitHub Actions**. Nao existem configuracoes de Docker ou Nginx no repositorio — o deploy e totalmente gerenciado pela Cloudflare.

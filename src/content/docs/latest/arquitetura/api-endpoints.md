@@ -1,6 +1,8 @@
 ---
 title: API e Endpoints
 description: Padroes de comunicacao com a API e catalogo completo de endpoints do Despensinha ERP.
+sidebar:
+  order: 5
 ---
 
 O Despensinha ERP utiliza uma camada de API centralizada baseada no **axios**, com wrappers tipados que garantem respostas consistentes via `ApiResponse<T>`. Toda comunicacao com o backend segue um padrao uniforme: instancia axios configurada com interceptors de autenticacao e tratamento de erros, e arquivos de endpoints organizados por dominio que exportam objetos constantes com paths estaticos e funcoes para paths dinamicos.

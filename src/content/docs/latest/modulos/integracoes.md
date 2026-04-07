@@ -1,6 +1,8 @@
 ---
 title: Integracoes
 description: Bibliotecas externas integradas ao Despensinha ERP e seus padroes de uso.
+sidebar:
+  order: 6
 ---
 
 O Despensinha ERP integra bibliotecas especializadas para graficos, mapas, manipulacao de canvas e drag-and-drop. Cada biblioteca tem um proposito especifico e segue padroes consistentes de integracao com React.

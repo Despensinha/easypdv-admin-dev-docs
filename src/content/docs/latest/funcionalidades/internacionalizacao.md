@@ -1,6 +1,8 @@
 ---
 title: Internacionalização
 description: Sistema de i18n com react-intl no Despensinha ERP.
+sidebar:
+  order: 3
 ---
 
 O sistema usa **react-intl** 6.4 para internacionalização. Os arquivos de mensagens estão em `src/_metronic/i18n/`.

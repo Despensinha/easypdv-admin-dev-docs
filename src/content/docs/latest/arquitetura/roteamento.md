@@ -1,6 +1,8 @@
 ---
 title: Roteamento
 description: Sistema de roteamento por perfil de usuário no Despensinha ERP.
+sidebar:
+  order: 1
 ---
 
 O roteamento usa **React Router DOM 6** com separação de rotas por perfil de usuário.

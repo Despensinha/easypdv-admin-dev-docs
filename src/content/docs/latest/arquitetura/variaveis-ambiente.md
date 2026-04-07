@@ -1,6 +1,8 @@
 ---
 title: Variáveis de Ambiente
 description: Como as variáveis de ambiente são gerenciadas no Despensinha ERP com Vite.
+sidebar:
+  order: 3
 ---
 
 O ERP usa **Vite** com variáveis prefixadas por `VITE_`, acessíveis via `import.meta.env`. Um wrapper centralizado em `projectEnvVariables.ts` adiciona suporte a substituição em runtime (deploy sem rebuild).

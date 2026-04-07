@@ -1,6 +1,8 @@
 ---
 title: Autenticação
 description: Fluxo de autenticação JWT no Despensinha ERP.
+sidebar:
+  order: 1
 ---
 
 A autenticação usa **JWT** com refresh token. O estado do usuário autenticado é mantido no `AuthContext`.

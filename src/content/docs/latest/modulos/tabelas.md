@@ -1,6 +1,8 @@
 ---
 title: Tabelas
 description: Padrão de tabelas com paginação e filtros no Despensinha ERP.
+sidebar:
+  order: 2
 ---
 
 As listagens do sistema usam **TanStack React Table 8** com paginação server-side via React Query.

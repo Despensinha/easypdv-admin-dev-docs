@@ -1,6 +1,8 @@
 ---
 title: Histórico de Versões
 description: Changelog do Despensinha ERP.
+sidebar:
+  order: 1
 ---
 
 ## v1.27.1 — 2026-03-20

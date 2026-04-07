@@ -1,6 +1,8 @@
 ---
 title: Filtros por URL
 description: Padrão de filtros persistidos na URL no Despensinha ERP.
+sidebar:
+  order: 1
 ---
 
 Os filtros das listagens são persistidos na URL usando **nuqs** (`useQueryStates`). Isso permite compartilhar URLs com filtros aplicados e manter o estado ao navegar.

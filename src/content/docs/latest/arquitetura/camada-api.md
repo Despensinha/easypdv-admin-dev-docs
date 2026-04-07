@@ -1,6 +1,8 @@
 ---
 title: Camada API
 description: Arquitetura da camada de comunicação com o backend no Despensinha ERP usando Axios.
+sidebar:
+  order: 4
 ---
 
 A comunicação com o backend é centralizada em `src/api/`, usando **Axios** com interceptors para autenticação e tratamento de erros.

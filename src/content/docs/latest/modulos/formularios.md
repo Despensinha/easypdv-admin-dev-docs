@@ -1,6 +1,8 @@
 ---
 title: Formulários
 description: Padrão de formulários com Formik e Yup no Despensinha ERP.
+sidebar:
+  order: 3
 ---
 
 Os formulários usam **Formik** para estado e **Yup** para validação.

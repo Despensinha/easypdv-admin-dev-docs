@@ -1,6 +1,8 @@
 ---
 title: Permissões
 description: Como usar o sistema de permissões CASL nos componentes do Despensinha ERP.
+sidebar:
+  order: 2
 ---
 
 Ver [RBAC](../arquitetura/rbac/) para a configuração das abilities por perfil. Esta página cobre o uso prático nos componentes.

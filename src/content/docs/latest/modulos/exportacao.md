@@ -1,6 +1,8 @@
 ---
 title: Exportação
 description: Padrão de exportação de dados (PDF, Excel, CSV) no Despensinha ERP.
+sidebar:
+  order: 4
 ---
 
 O sistema oferece exportação para PDF, Excel e CSV. Os utilitários estão em `src/app/utils/`.

@@ -1,6 +1,8 @@
 ---
 title: Notificações
 description: Sistema de notificações toast no Despensinha ERP.
+sidebar:
+  order: 4
 ---
 
 O sistema usa **react-toastify** 11.0 para exibir notificações ao usuário.

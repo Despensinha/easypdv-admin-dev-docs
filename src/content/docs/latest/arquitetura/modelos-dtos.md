@@ -1,6 +1,8 @@
 ---
 title: Modelos e DTOs
 description: Convencoes de modelagem de dados e catalogo completo de tipos TypeScript do Despensinha ERP.
+sidebar:
+  order: 6
 ---
 
 A camada de modelos do Despensinha ERP define todas as interfaces e tipos TypeScript que representam a forma dos dados trafegados entre a API e a interface. Esses tipos garantem type-safety em toda a aplicacao, desde as requisicoes HTTP ate a renderizacao dos componentes React.

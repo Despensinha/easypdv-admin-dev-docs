@@ -1,6 +1,8 @@
 ---
 title: Hooks Customizados
 description: Hooks React customizados utilizados no Despensinha ERP.
+sidebar:
+  order: 5
 ---
 
 O Despensinha ERP utiliza hooks React customizados para encapsular comportamentos reutilizaveis em toda a aplicacao. Todos os hooks estao localizados em `src/app/hooks/` e seguem o padrao `use[NomeDoHook]`.

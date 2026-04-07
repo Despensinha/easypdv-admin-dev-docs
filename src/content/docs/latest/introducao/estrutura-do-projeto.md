@@ -1,6 +1,8 @@
 ---
 title: Estrutura do Projeto
 description: Organização de arquivos e diretórios do Despensinha ERP.
+sidebar:
+  order: 2
 ---
 
 O projeto está em `/despensinha-admin-app/` (ou no diretório raiz conforme o ambiente).

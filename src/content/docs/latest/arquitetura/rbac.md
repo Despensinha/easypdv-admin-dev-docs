@@ -1,6 +1,8 @@
 ---
 title: RBAC (Permissões)
 description: Sistema de controle de acesso baseado em papéis usando CASL no Despensinha ERP.
+sidebar:
+  order: 2
 ---
 
 O sistema usa **CASL** (`@casl/ability` 6.8) para controle de acesso baseado em papéis (RBAC).

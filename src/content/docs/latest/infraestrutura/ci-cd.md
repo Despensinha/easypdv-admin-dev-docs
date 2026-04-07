@@ -1,6 +1,8 @@
 ---
 title: CI/CD
 description: Workflows de integracao continua e entrega continua do Despensinha ERP.
+sidebar:
+  order: 1
 ---
 
 O Despensinha ERP utiliza **GitHub Actions** para CI/CD, com 8 workflows que cobrem release automatico, validacao de PRs, sincronizacao de branches e dispatch de documentacao.
