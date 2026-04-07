@@ -1,0 +1,17 @@
+// src/config/versions.ts
+// Single source of truth for version metadata.
+// Consumed by VersionSelect component and sidebar config.
+
+export interface Version {
+  slug: string;       // URL path segment: 'latest' or 'v1-27-1'
+  label: string;      // Display label: 'Latest' or 'v1.27.1'
+  badge?: string;     // Optional badge text
+  isCurrent: boolean; // true for latest
+}
+
+export const versions: Version[] = [
+  { slug: 'latest', label: 'Latest', badge: 'Atual', isCurrent: true },
+  { slug: 'v1-27-1', label: 'v1.27.1', isCurrent: false },
+];
+
+export const defaultVersion = 'latest';
