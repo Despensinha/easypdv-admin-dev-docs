@@ -1,3 +1,12 @@
+# [1.1.0](https://github.com/Despensinha/easypdv-admin-dev-docs/compare/v1.0.0...v1.1.0) (2026-04-09)
+
+
+### Features
+
+* **07-02:** duplicate AI provider layer to dev docs repo ([0e78098](https://github.com/Despensinha/easypdv-admin-dev-docs/commit/0e780980e4dd676831c6c356fbe0b8748f649ab5))
+* **08-03:** copy Phase 8 code files to dev docs repo (byte-identical) ([a618e86](https://github.com/Despensinha/easypdv-admin-dev-docs/commit/a618e86004fc45198d81fe6e679ff89292733a07))
+* **08-03:** create dev-docs-specific page-map.json with dev mappings ([afb35ee](https://github.com/Despensinha/easypdv-admin-dev-docs/commit/afb35ee638481d837e1b2029ea4d7872d2283136))
+
 # 1.0.0 (2026-04-07)
 
 
