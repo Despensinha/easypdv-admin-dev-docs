@@ -134,3 +134,22 @@ describe('summarizeChanges', () => {
     assert.ok(result.error.includes('Empty summary response'));
   });
 });
+
+describe('classify', () => {
+  it('returns success with JSON content on API success', async () => {
+    const jsonResponse = JSON.stringify([{ filePath: 'src/app/pages/finance/BillsPage.tsx', classification: 'ui-only', isNewModule: false }]);
+    const client = mockClient(async () => ({ output_text: jsonResponse }));
+    const provider = createOpenAIProvider({ apiKey: 'test-key', model: 'gpt-5.4-mini', client });
+    const result = await provider.classify({ system: 'system prompt', user: 'user prompt' });
+    assert.equal(result.success, true);
+    assert.equal(result.content, jsonResponse);
+  });
+
+  it('returns success false on API error (never throws)', async () => {
+    const client = mockClient(async () => { throw new Error('API rate limit'); });
+    const provider = createOpenAIProvider({ apiKey: 'test-key', model: 'gpt-5.4-mini', client });
+    const result = await provider.classify({ system: 'system prompt', user: 'user prompt' });
+    assert.equal(result.success, false);
+    assert.ok(result.error.includes('API rate limit'));
+  });
+});

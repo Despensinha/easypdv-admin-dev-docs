@@ -107,5 +107,14 @@ export function createOpenAIProvider({ apiKey, model, client }) {
         return { success: false, error: err.message };
       }
     },
+
+    async classify(prompt) {
+      try {
+        const content = await callAI(prompt.system, prompt.user);
+        return { success: true, content };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    },
   };
 }

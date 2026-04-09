@@ -28,6 +28,7 @@
  * @property {(diff: string, existingContent: string, pageMeta: PageMeta) => Promise<AIProviderResult>} updatePage
  * @property {(diff: string, pageMeta: PageMeta) => Promise<AIProviderResult>} createPage
  * @property {(results: AIProviderResult[]) => Promise<AIProviderResult>} summarizeChanges
+ * @property {(prompt: {system: string, user: string}) => Promise<AIProviderResult>} classify
  */
 
 const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;

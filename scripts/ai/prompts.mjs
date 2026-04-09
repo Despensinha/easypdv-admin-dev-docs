@@ -110,3 +110,37 @@ Produza um resumo conciso em markdown adequado para o corpo de um Pull Request. 
 
   return { system, user };
 }
+
+/**
+ * Build prompts for classifying diff files into documentation-relevant categories.
+ * @param {Array<{filePath: string, changeType: string, hunks: Array<{header: string, lines: string[]}>, unmapped?: boolean}>} files
+ * @returns {{ system: string, user: string }}
+ */
+export function buildClassifyPrompt(files) {
+  const system = `Voce e um classificador de mudancas de codigo do Despensinha ERP.
+Para cada arquivo, classifique como exatamente um tipo:
+- "ui-only": Mudancas visuais (CSS, layout, textos de interface, estilos)
+- "architecture": Mudancas estruturais (rotas, providers, estado global, API endpoints, services)
+- "new-feature": Funcionalidade nova (novos componentes, novos endpoints, novas paginas)
+- "refactor-skip": Refatoracao interna sem impacto na documentacao
+
+Para arquivos marcados como "unmapped" (sem mapeamento para documentacao existente),
+avalie se representam um novo modulo do ERP que precisa de documentacao.
+Se sim, classifique como "new-feature" e adicione "isNewModule": true.
+Se nao (arquivo utilitario, config interno), classifique como "refactor-skip".
+
+Responda em JSON valido: [{"filePath": "...", "classification": "...", "isNewModule": false}]
+Responda APENAS o JSON array, sem markdown code fences.`;
+
+  const filesInfo = files.map((f) => ({
+    filePath: f.filePath,
+    changeType: f.changeType,
+    hunkHeaders: f.hunks.map((h) => h.header),
+    linesChanged: f.hunks.reduce((sum, h) => sum + h.lines.length, 0),
+    unmapped: f.unmapped || false,
+  }));
+
+  const user = `Classifique estas mudancas:\n${JSON.stringify(filesInfo, null, 2)}`;
+
+  return { system, user };
+}

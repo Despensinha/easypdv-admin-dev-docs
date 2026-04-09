@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildUpdatePrompt, buildCreatePrompt, buildSummarizePrompt } from './prompts.mjs';
+import { buildUpdatePrompt, buildCreatePrompt, buildSummarizePrompt, buildClassifyPrompt } from './prompts.mjs';
 
 describe('buildUpdatePrompt', () => {
   const diff = '+ nova linha adicionada';
@@ -115,5 +115,52 @@ describe('buildSummarizePrompt', () => {
   it('user prompt contains results info', () => {
     const result = buildSummarizePrompt(results);
     assert.ok(result.user.includes('success') || result.user.includes('sucesso') || result.user.includes('true'));
+  });
+});
+
+describe('buildClassifyPrompt', () => {
+  const files = [
+    {
+      filePath: 'src/app/pages/finance/BillsPage.tsx',
+      changeType: 'modify',
+      hunks: [{ header: '@@ -10,6 +10,8 @@ function BillsPage', lines: ['+ new line'] }],
+    },
+    {
+      filePath: 'src/app/pages/unknown/NewPage.tsx',
+      changeType: 'add',
+      hunks: [{ header: '@@ -0,0 +1,50 @@ ', lines: ['+ export default function NewPage'] }],
+      unmapped: true,
+    },
+  ];
+
+  it('returns object with system and user strings', () => {
+    const result = buildClassifyPrompt(files);
+    assert.equal(typeof result.system, 'string');
+    assert.equal(typeof result.user, 'string');
+  });
+
+  it('system contains all four classification types', () => {
+    const result = buildClassifyPrompt(files);
+    assert.ok(result.system.includes('ui-only'));
+    assert.ok(result.system.includes('architecture'));
+    assert.ok(result.system.includes('new-feature'));
+    assert.ok(result.system.includes('refactor-skip'));
+  });
+
+  it('system contains unmapped instruction for new module detection', () => {
+    const result = buildClassifyPrompt(files);
+    assert.ok(result.system.includes('unmapped'));
+  });
+
+  it('user contains file paths from input', () => {
+    const result = buildClassifyPrompt(files);
+    assert.ok(result.user.includes('src/app/pages/finance/BillsPage.tsx'));
+    assert.ok(result.user.includes('src/app/pages/unknown/NewPage.tsx'));
+  });
+
+  it('handles empty files array without error', () => {
+    const result = buildClassifyPrompt([]);
+    assert.equal(typeof result.system, 'string');
+    assert.equal(typeof result.user, 'string');
   });
 });
