@@ -98,12 +98,12 @@ describe('loadPageMap', () => {
   it('reads and parses the actual page-map.json file', async () => {
     const mod = await import(`./page-mapper.mjs?t=${Date.now()}`);
     const pageMap = await mod.loadPageMap(join(__dirname, 'page-map.json'));
-    assert.equal(pageMap.repoType, 'user');
+    assert.equal(pageMap.repoType, 'dev');
     assert.ok(Array.isArray(pageMap.mappings));
     assert.ok(pageMap.mappings.length >= 15);
     // Verify a known mapping exists
     const financeMapping = pageMap.mappings.find(m => m.erpDir === 'src/app/pages/finance/');
     assert.ok(financeMapping);
-    assert.equal(financeMapping.docSection, 'latest/financeiro/');
+    assert.equal(financeMapping.docSection, 'latest/modulos/');
   });
 });

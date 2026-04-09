@@ -1,0 +1,24 @@
+{
+  "repoType": "dev",
+  "mappings": [
+    { "erpDir": "src/app/pages/finance/", "docSection": "latest/modulos/", "description": "Financial module - dev docs" },
+    { "erpDir": "src/app/pages/catalog/", "docSection": "latest/modulos/", "description": "Catalog module - dev docs" },
+    { "erpDir": "src/app/pages/sales/", "docSection": "latest/modulos/", "description": "Sales module - dev docs" },
+    { "erpDir": "src/app/pages/supply/", "docSection": "latest/modulos/", "description": "Supply module - dev docs" },
+    { "erpDir": "src/app/pages/registrations/", "docSection": "latest/modulos/", "description": "Registration module - dev docs" },
+    { "erpDir": "src/app/pages/reports/", "docSection": "latest/modulos/", "description": "Reports module - dev docs" },
+    { "erpDir": "src/app/pages/home/", "docSection": "latest/modulos/", "description": "Home/dashboard module - dev docs" },
+    { "erpDir": "src/app/pages/accountant-space/", "docSection": "latest/modulos/", "description": "Accountant space module - dev docs" },
+    { "erpDir": "src/app/pages/manager-space/", "docSection": "latest/modulos/", "description": "Manager space module - dev docs" },
+    { "erpDir": "src/app/pages/preferences/", "docSection": "latest/modulos/", "description": "Preferences module - dev docs" },
+    { "erpDir": "src/app/pages/notifications/", "docSection": "latest/modulos/", "description": "Notifications module - dev docs" },
+    { "erpDir": "src/app/pages/file-manager/", "docSection": "latest/modulos/", "description": "File manager module - dev docs" },
+    { "erpDir": "src/app/pages/setup/", "docSection": "latest/infraestrutura/", "description": "Setup - infrastructure docs" },
+    { "erpDir": "src/app/pages/subscription/", "docSection": "latest/infraestrutura/", "description": "Subscription - infrastructure docs" },
+    { "erpDir": "src/app/pages/layout-builder/", "docSection": "latest/arquitetura/", "description": "Layout builder - architecture docs" },
+    { "erpDir": "src/app/modules/", "docSection": "latest/modulos/", "description": "Shared modules - dev docs" },
+    { "erpDir": "src/api/", "docSection": "latest/arquitetura/", "description": "API layer - architecture docs" },
+    { "erpDir": "src/shared/", "docSection": "latest/arquitetura/", "description": "Shared utilities - architecture docs" },
+    { "erpDir": "src/_metronic/", "docSection": null, "description": "Metronic template - always skip" }
+  ]
+}
