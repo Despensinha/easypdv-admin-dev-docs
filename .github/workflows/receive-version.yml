@@ -94,7 +94,7 @@ jobs:
                 'Could not parse generate-result.json: ' + e.message,
               ].join('\n');
               fs.writeFileSync('pr-body.md', body);
-              return;
+              process.exit(0);
             }
 
             const lines = ['## AI Documentation Update', ''];
