@@ -3,43 +3,138 @@ name: Receive Version Update
 on:
   repository_dispatch:
     types: [docs-version-update]
+  workflow_dispatch:
+    inputs:
+      previous_tag:
+        type: string
+        required: true
+        description: "Tag da versao anterior (ex: v1.27.1)"
+      new_tag:
+        type: string
+        required: true
+        description: "Tag da nova versao (ex: v1.28.0)"
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
-  receive:
+  update-docs:
     runs-on: ubuntu-latest
+    env:
+      PREV_TAG: ${{ github.event.client_payload.previous_tag || inputs.previous_tag }}
+      NEW_TAG: ${{ github.event.client_payload.new_tag || inputs.new_tag }}
+      VERSION: ${{ github.event.client_payload.docs_version || inputs.new_tag }}
     steps:
-      - name: Log received payload
+      - name: Checkout docs repo
+        uses: actions/checkout@v4
+
+      - name: Checkout ERP repo
+        uses: actions/checkout@v4
+        with:
+          repository: Despensinha/despensinha-admin-app
+          token: ${{ secrets.DISPATCH_TOKEN }}
+          path: erp-repo
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate AI content
+        id: generate
         run: |
-          echo "## Version Update Received" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **App Version:** ${{ github.event.client_payload.app_version }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Docs Version:** ${{ github.event.client_payload.docs_version }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Tag:** ${{ github.event.client_payload.tag }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Source Repo:** ${{ github.event.client_payload.source_repo }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Changes Summary:** ${{ github.event.client_payload.changes_summary }}" >> "$GITHUB_STEP_SUMMARY"
+          set +e
+          node scripts/ai/generate-content.mjs ./erp-repo "$PREV_TAG" "$NEW_TAG" > generate-result.json 2>generate-errors.log
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          set -e
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-      # TODO: Atualizacao de conteudo via IA
-      # Quando implementado (v2), este step vai:
-      # 1. Receber changes_summary do payload (diff das mudancas do ERP)
-      # 2. Analisar quais paginas em src/content/docs/latest/ precisam ser atualizadas
-      # 3. Usar IA para atualizar o conteudo das paginas afetadas
-      # 4. Criar commit com as mudancas
-      #
-      # - name: AI content update
-      #   if: github.event.client_payload.changes_summary != ''
-      #   run: |
-      #     echo "Processing changes_summary for AI-driven content update..."
-      #     # Analyze diffs and update latest/ pages
+      - name: Create version snapshot
+        if: steps.generate.outputs.exit_code == '0'
+        run: |
+          CLEAN_VERSION="${VERSION#v}"
+          bash scripts/create-snapshot.sh "$CLEAN_VERSION"
 
-      # TODO: Criacao de snapshot automatico
-      # Quando implementado (v2), este step vai:
-      # 1. Executar scripts/create-snapshot.sh com a nova versao
-      # 2. Criar snapshot da versao atual de latest/
-      # 3. Criar commit e PR com o snapshot
-      #
-      # - name: Create version snapshot
-      #   run: |
-      #     bash scripts/create-snapshot.sh "${{ github.event.client_payload.docs_version }}"
+      - name: Build PR body
+        run: |
+          node -e "
+          const fs = require('fs');
+          const exitCode = '${{ steps.generate.outputs.exit_code }}';
+          let body = '';
+
+          if (exitCode !== '0') {
+            let errors = '';
+            try { errors = fs.readFileSync('generate-errors.log', 'utf-8'); } catch {}
+            body = [
+              '## AI Documentation Update - FAILED',
+              '',
+              'Content generation failed with exit code ' + exitCode + '.',
+              '',
+              '### Error Log',
+              '',
+              '\`\`\`',
+              errors || 'No error log available.',
+              '\`\`\`',
+            ].join('\n');
+          } else {
+            let r;
+            try {
+              r = JSON.parse(fs.readFileSync('generate-result.json', 'utf-8'));
+            } catch (e) {
+              body = [
+                '## AI Documentation Update - FAILED',
+                '',
+                'Could not parse generate-result.json: ' + e.message,
+              ].join('\n');
+              fs.writeFileSync('pr-body.md', body);
+              return;
+            }
+
+            const lines = ['## AI Documentation Update', ''];
+            lines.push('### Summary', r.summary || 'No summary available.', '');
+
+            if (r.updated && r.updated.length > 0) {
+              lines.push('### Pages Updated');
+              r.updated.forEach(function(u) { lines.push('- ' + u.page); });
+              lines.push('');
+            }
+
+            if (r.created && r.created.length > 0) {
+              lines.push('### Pages Created');
+              r.created.forEach(function(c) { lines.push('- ' + c.page + ' (' + c.title + ')'); });
+              lines.push('');
+            }
+
+            if (r.failures && r.failures.length > 0) {
+              lines.push('### Failures');
+              r.failures.forEach(function(f) { lines.push('- **' + f.page + '**: ' + f.error); });
+              lines.push('');
+            }
+
+            body = lines.join('\n');
+          }
+
+          fs.writeFileSync('pr-body.md', body);
+          "
+
+      - name: Commit and create PR
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          CLEAN_VERSION="${VERSION#v}"
+          BRANCH="docs/v${CLEAN_VERSION}-update"
+          git checkout -B "$BRANCH"
+          git add -A
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "docs(ai): update v${CLEAN_VERSION} content + snapshot"
+          git push origin "$BRANCH" --force
+          gh pr create --title "docs(ai): update v${CLEAN_VERSION}" --body-file pr-body.md --base main || echo "PR already exists"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
