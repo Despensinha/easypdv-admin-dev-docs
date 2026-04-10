@@ -1,3 +1,16 @@
+# [1.2.0](https://github.com/Despensinha/easypdv-admin-dev-docs/compare/v1.1.0...v1.2.0) (2026-04-10)
+
+
+### Bug Fixes
+
+* **pipeline:** replace illegal return with process.exit in PR body builder ([7e66bd1](https://github.com/Despensinha/easypdv-admin-dev-docs/commit/7e66bd1050e6b8546242d2523089e262f880b4c6))
+
+
+### Features
+
+* **09-02:** duplicate generate-content orchestrator to dev docs repo ([40feb35](https://github.com/Despensinha/easypdv-admin-dev-docs/commit/40feb35a6f8f45a9cb8f893b315b063ad55ffa3e))
+* **10-02:** replace receive-version stub with full AI pipeline workflow ([a68399c](https://github.com/Despensinha/easypdv-admin-dev-docs/commit/a68399cae56a473f5e2dce5ba01c6ae84f1a030f))
+
 # [1.1.0](https://github.com/Despensinha/easypdv-admin-dev-docs/compare/v1.0.0...v1.1.0) (2026-04-09)
 
 
