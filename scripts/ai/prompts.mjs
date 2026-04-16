@@ -132,7 +132,12 @@ Remova da documentacao as secoes relacionadas ao codigo removido. Retorne o corp
 export function buildSummarizePrompt(results) {
   const system = `Voce e um resumidor de mudancas de documentacao para o Despensinha ERP.
 Produza um resumo conciso em markdown das mudancas realizadas.
-Escreva em pt-BR.`;
+
+Regras:
+- NAO inclua headings markdown (sem #, ##, ###). Retorne apenas prosa e bullets.
+- Comece o texto direto com prosa ou bullets, sem titulo no topo.
+- Use bullets para listar paginas atualizadas/criadas/removidas.
+- Escreva em pt-BR.`;
 
   const resultsText = results.map((r, i) => {
     if (r.success) {

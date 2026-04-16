@@ -133,6 +133,35 @@ describe('summarizeChanges', () => {
     assert.equal(result.success, false);
     assert.ok(result.error.includes('Empty summary response'));
   });
+
+  it('strips a leading markdown heading from the AI response', async () => {
+    const output = '### Resumo das alteracoes\n\nPrimeira linha de prosa.\n- item';
+    const client = mockClient(async () => ({ output_text: output }));
+    const provider = createOpenAIProvider({ apiKey: 'test-key', model: 'gpt-5.4-mini', client });
+    const result = await provider.summarizeChanges(results);
+    assert.equal(result.success, true);
+    assert.ok(!result.content.startsWith('#'));
+    assert.ok(result.content.includes('Primeira linha de prosa.'));
+  });
+
+  it('strips multiple consecutive leading headings', async () => {
+    const output = '## Titulo\n### Subtitulo\n\nProsa aqui.';
+    const client = mockClient(async () => ({ output_text: output }));
+    const provider = createOpenAIProvider({ apiKey: 'test-key', model: 'gpt-5.4-mini', client });
+    const result = await provider.summarizeChanges(results);
+    assert.equal(result.success, true);
+    assert.ok(!result.content.startsWith('#'));
+    assert.ok(result.content.includes('Prosa aqui.'));
+  });
+
+  it('leaves non-heading content untouched', async () => {
+    const output = 'Resumo: foram atualizadas 3 paginas.\n- a\n- b';
+    const client = mockClient(async () => ({ output_text: output }));
+    const provider = createOpenAIProvider({ apiKey: 'test-key', model: 'gpt-5.4-mini', client });
+    const result = await provider.summarizeChanges(results);
+    assert.equal(result.success, true);
+    assert.equal(result.content, output);
+  });
 });
 
 describe('classify', () => {

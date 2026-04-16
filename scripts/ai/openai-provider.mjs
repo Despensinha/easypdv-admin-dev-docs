@@ -63,6 +63,20 @@ export function createOpenAIProvider({ apiKey, model, client }) {
     return content.replace(/^---\n[\s\S]*?\n---\n*/, '');
   }
 
+  /**
+   * Strip any leading markdown heading lines from content.
+   * The summarize prompt forbids headings, but we defensively clean anyway so
+   * the receive-version PR body never shows an empty Summary section (the
+   * workflow prepends its own '### Summary' header).
+   * @param {string} content
+   * @returns {string}
+   */
+  function stripLeadingHeadings(content) {
+    if (!content) return content;
+    // Remove one-or-more leading heading lines, tolerating blank lines between them.
+    return content.replace(/^(?:\s*#{1,6}[^\n]*\n+)+/, '');
+  }
+
   return {
     async updatePage(diff, existingContent, pageMeta) {
       try {
@@ -117,7 +131,8 @@ export function createOpenAIProvider({ apiKey, model, client }) {
     async summarizeChanges(results) {
       try {
         const { system, user } = buildSummarizePrompt(results);
-        const content = await callAI(system, user);
+        let content = await callAI(system, user);
+        content = stripLeadingHeadings(content).replace(/^\s+/, '');
 
         if (!content) {
           return { success: false, error: 'Empty summary response' };

@@ -116,6 +116,11 @@ describe('buildSummarizePrompt', () => {
     const result = buildSummarizePrompt(results);
     assert.ok(result.user.includes('success') || result.user.includes('sucesso') || result.user.includes('true'));
   });
+
+  it('system prompt forbids markdown headings', () => {
+    const result = buildSummarizePrompt(results);
+    assert.ok(result.system.includes('NAO inclua') && result.system.includes('#'));
+  });
 });
 
 describe('buildClassifyPrompt', () => {
