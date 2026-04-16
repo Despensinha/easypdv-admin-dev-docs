@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/Despensinha/easypdv-admin-dev-docs/compare/v1.2.0...v1.2.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* **pipeline:** selective git add + page-map catch-all ([43ea3d3](https://github.com/Despensinha/easypdv-admin-dev-docs/commit/43ea3d325cc2cec14f5aff35b222cc377c9fbf4c))
+
 # [1.2.0](https://github.com/Despensinha/easypdv-admin-dev-docs/compare/v1.1.0...v1.2.0) (2026-04-10)
 
 
