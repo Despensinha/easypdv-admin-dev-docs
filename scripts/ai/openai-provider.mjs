@@ -7,7 +7,7 @@
  */
 
 import OpenAI from 'openai';
-import { buildUpdatePrompt, buildCreatePrompt, buildSummarizePrompt } from './prompts.mjs';
+import { buildUpdatePrompt, buildCreatePrompt, buildDeletePrompt, buildSummarizePrompt } from './prompts.mjs';
 
 const MIN_CONTENT_LENGTH = 50;
 
@@ -84,6 +84,26 @@ export function createOpenAIProvider({ apiKey, model, client }) {
         const { system, user } = buildCreatePrompt(diff, pageMeta);
         let content = await callAI(system, user);
         content = stripFrontmatter(content);
+
+        if (!content || content.length < MIN_CONTENT_LENGTH) {
+          return { success: false, error: `Response too short (${content?.length || 0} chars)` };
+        }
+        return { success: true, content };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    },
+
+    async deletePage(diff, existingContent, pageMeta) {
+      try {
+        const { system, user } = buildDeletePrompt(diff, existingContent, pageMeta);
+        let content = await callAI(system, user);
+        content = stripFrontmatter(content);
+
+        // AI returns __PAGE_DELETED__ when the entire page should be removed
+        if (content && content.trim() === '__PAGE_DELETED__') {
+          return { success: true, content: '__PAGE_DELETED__' };
+        }
 
         if (!content || content.length < MIN_CONTENT_LENGTH) {
           return { success: false, error: `Response too short (${content?.length || 0} chars)` };

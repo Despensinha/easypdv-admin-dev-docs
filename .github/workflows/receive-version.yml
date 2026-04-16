@@ -112,6 +112,12 @@ jobs:
               lines.push('');
             }
 
+            if (r.deleted && r.deleted.length > 0) {
+              lines.push('### Pages Deleted/Updated (removed content)');
+              r.deleted.forEach(function(d) { lines.push('- ' + d.page + ' (' + d.note + ')'); });
+              lines.push('');
+            }
+
             if (r.failures && r.failures.length > 0) {
               lines.push('### Failures');
               r.failures.forEach(function(f) { lines.push('- **' + f.page + '**: ' + f.error); });

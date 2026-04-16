@@ -167,7 +167,7 @@ export async function generateContent(options) {
     joinFrontmatter: injectedDeps?.joinFrontmatter || joinFrontmatter,
   };
 
-  const result = { updated: [], created: [], failures: [], summary: '' };
+  const result = { updated: [], created: [], deleted: [], failures: [], summary: '' };
 
   // 1. Get raw diff
   console.error(`[generate-content] Getting diff between ${fromTag}..${toTag}`);
@@ -213,7 +213,11 @@ export async function generateContent(options) {
   const classifiedFiles = classResult.files;
   console.error(`[generate-content] Classified ${classifiedFiles.length} files`);
 
-  // 8. Separate: update files vs create files vs skip
+  // 8. Separate: delete files vs update files vs create files vs skip
+  // 8a. Pull out deleted files BEFORE classification-based routing
+  const deleteFiles = mapped.filter((f) => f.changeType === 'delete');
+  const nonDeleteMapped = mapped.filter((f) => f.changeType !== 'delete');
+
   const updateFilePaths = new Set(
     classifiedFiles
       .filter((f) => f.classification !== 'refactor-skip' && !f.isNewModule)
@@ -223,19 +227,94 @@ export async function generateContent(options) {
     classifiedFiles.filter((f) => f.isNewModule).map((f) => f.filePath)
   );
 
-  // Get mapped files that need updating (non-skip, non-newModule, have docSection)
-  const updateFiles = mapped.filter((f) => updateFilePaths.has(f.filePath));
+  // Get non-deleted mapped files that need updating (non-skip, non-newModule, have docSection)
+  const updateFiles = nonDeleteMapped.filter((f) => updateFilePaths.has(f.filePath));
   // Get unmapped files that are new modules
   const createFiles = unmapped.filter((f) => createFilePaths.has(f.filePath));
 
   console.error(
-    `[generate-content] Update: ${updateFiles.length} files, Create: ${createFiles.length} files`
+    `[generate-content] Delete: ${deleteFiles.length} files, Update: ${updateFiles.length} files, Create: ${createFiles.length} files`
   );
 
-  // 9. Merge diffs per page for updates (per D-04)
+  // 9. Merge diffs per page for deletes and updates (per D-04)
+  const deleteMergedGroups = mergeDiffsPerPage(deleteFiles);
   const mergedGroups = mergeDiffsPerPage(updateFiles);
 
-  // 10. Build update tasks
+  // 10a. Build delete tasks
+  const deleteTasks = Array.from(deleteMergedGroups.values()).map(async (group) => {
+    try {
+      const docFilePath = await findDocFile(docsRepoPath, group.docSection, null, deps);
+      if (!docFilePath) {
+        // Doc file doesn't exist — nothing to delete
+        return {
+          type: 'deleted',
+          page: group.docSection,
+          sourceFiles: group.sourceFiles,
+          note: 'No doc file found (already removed or never existed)',
+        };
+      }
+
+      const existingContent = await deps.readFile(docFilePath);
+      const { frontmatter, body } = deps.splitFrontmatter(existingContent);
+
+      const titleMatch = frontmatter.match(/^title:\s*(.+)$/m);
+      const title = titleMatch
+        ? titleMatch[1].replace(/^["']|["']$/g, '').trim()
+        : group.docSection;
+
+      const sectionParts = group.docSection.replace(/^latest\//, '').replace(/\/$/, '');
+
+      /** @type {import('./ai-provider.mjs').PageMeta} */
+      const pageMeta = {
+        title,
+        section: sectionParts,
+        repoType: pageMap.repoType,
+      };
+
+      const aiResult = await provider.deletePage(group.mergedDiff, body, pageMeta);
+
+      if (!aiResult.success) {
+        return {
+          type: 'failure',
+          page: group.docSection,
+          error: aiResult.error,
+          sourceFiles: group.sourceFiles,
+        };
+      }
+
+      if (aiResult.content === '__PAGE_DELETED__') {
+        // AI determined the entire page should be removed
+        const { unlink } = await import('node:fs/promises');
+        await unlink(docFilePath);
+        return {
+          type: 'deleted',
+          page: group.docSection,
+          sourceFiles: group.sourceFiles,
+          note: 'Page entirely removed (all content was about deleted feature)',
+        };
+      }
+
+      // AI returned updated content with deleted sections removed
+      const updatedContent = deps.joinFrontmatter(frontmatter, aiResult.content);
+      await deps.writeFile(docFilePath, updatedContent);
+
+      return {
+        type: 'updated',
+        page: group.docSection,
+        sourceFiles: group.sourceFiles,
+        note: 'Removed sections for deleted feature',
+      };
+    } catch (err) {
+      return {
+        type: 'failure',
+        page: group.docSection,
+        error: err.message,
+        sourceFiles: group.sourceFiles,
+      };
+    }
+  });
+
+  // 10b. Build update tasks
   const updateTasks = Array.from(mergedGroups.values()).map(async (group) => {
     try {
       // Find the target doc file
@@ -364,7 +443,7 @@ export async function generateContent(options) {
   });
 
   // 12. Execute all tasks in parallel (per D-01)
-  const allSettled = await Promise.allSettled([...updateTasks, ...createTasks]);
+  const allSettled = await Promise.allSettled([...deleteTasks, ...updateTasks, ...createTasks]);
 
   // 13. Collect results
   for (const settled of allSettled) {
@@ -390,6 +469,13 @@ export async function generateContent(options) {
           sourceFiles: taskResult.sourceFiles,
         });
         break;
+      case 'deleted':
+        result.deleted.push({
+          page: taskResult.page,
+          note: taskResult.note,
+          sourceFiles: taskResult.sourceFiles,
+        });
+        break;
       case 'failure':
         result.failures.push({
           page: taskResult.page,
@@ -401,13 +487,14 @@ export async function generateContent(options) {
   }
 
   console.error(
-    `[generate-content] Results: ${result.updated.length} updated, ${result.created.length} created, ${result.failures.length} failures`
+    `[generate-content] Results: ${result.updated.length} updated, ${result.created.length} created, ${result.deleted.length} deleted, ${result.failures.length} failures`
   );
 
   // 14. Summarize changes (per D-09)
   const summaryInput = [
     ...result.updated.map((u) => ({ success: true, content: `Updated: ${u.page}` })),
     ...result.created.map((c) => ({ success: true, content: `Created: ${c.page} (${c.title})` })),
+    ...result.deleted.map((d) => ({ success: true, content: `Deleted: ${d.page} (${d.note})` })),
     ...result.failures.map((f) => ({ success: false, error: `${f.page}: ${f.error}` })),
   ];
 

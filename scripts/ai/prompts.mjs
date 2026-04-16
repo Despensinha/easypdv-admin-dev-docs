@@ -87,6 +87,44 @@ Crie o corpo completo da nova pagina de documentacao baseado no diff acima.`;
 }
 
 /**
+ * Build prompts for removing documentation of a deleted ERP feature.
+ * @param {string} existingContent - Current page body (without frontmatter)
+ * @param {string} deletedDiff - Git diff showing the removed code
+ * @param {import('./ai-provider.mjs').PageMeta} pageMeta
+ * @returns {{ system: string, user: string }}
+ */
+export function buildDeletePrompt(deletedDiff, existingContent, pageMeta) {
+  const tone = TONE_INSTRUCTIONS[pageMeta.repoType];
+
+  const system = `Voce e um escritor de documentacao tecnica para o Despensinha ERP.
+${tone}
+
+Regras:
+- NAO inclua frontmatter (o bloco --- no inicio). Retorne APENAS o corpo da pagina.
+- O diff abaixo mostra codigo que foi REMOVIDO do ERP. A funcionalidade nao existe mais.
+- REMOVA da documentacao qualquer secao que descreva a funcionalidade removida.
+- Se a pagina inteira descreve apenas a funcionalidade removida, retorne exatamente: __PAGE_DELETED__
+- NAO adicione documentacao sobre o que foi removido. A funcionalidade nao existe mais.
+- Preserve intacto todo o conteudo que NAO esta relacionado ao codigo removido.
+- Escreva em pt-BR.`;
+
+  const user = `## Pagina atual: ${pageMeta.title}
+Secao: ${pageMeta.section}
+
+## Conteudo atual da pagina:
+${existingContent}
+
+## Diff do codigo REMOVIDO do ERP:
+\`\`\`diff
+${deletedDiff}
+\`\`\`
+
+Remova da documentacao as secoes relacionadas ao codigo removido. Retorne o corpo completo atualizado (sem as secoes removidas).`;
+
+  return { system, user };
+}
+
+/**
  * Build prompts for summarizing a batch of documentation changes.
  * @param {import('./ai-provider.mjs').AIProviderResult[]} results
  * @returns {{ system: string, user: string }}
