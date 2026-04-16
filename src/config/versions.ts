@@ -12,6 +12,7 @@ export interface Version {
 export const versions: Version[] = [
   { slug: 'latest', label: 'Latest', badge: 'Atual', isCurrent: true },
   { slug: 'v1-27-1', label: 'v1.27.1', isCurrent: false },
+  { slug: 'v99-0-0-test-after', label: 'v99.0.0-test-after', isCurrent: false },
 ];
 
 export const defaultVersion = 'latest';
