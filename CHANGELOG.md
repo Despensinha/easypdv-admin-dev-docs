@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/Despensinha/easypdv-admin-dev-docs/compare/v1.3.0...v1.3.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* **ai:** prevent empty Summary section in receive-version PR ([1b51550](https://github.com/Despensinha/easypdv-admin-dev-docs/commit/1b515507261bb4a1a55618d6c88d051acaed0d67)), closes [4-#8](https://github.com/4-/issues/8)
+
 # [1.3.0](https://github.com/Despensinha/easypdv-admin-dev-docs/compare/v1.2.1...v1.3.0) (2026-04-16)
 
 
