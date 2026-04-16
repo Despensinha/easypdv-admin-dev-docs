@@ -19,6 +19,7 @@
     { "erpDir": "src/app/modules/", "docSection": "latest/modulos/", "description": "Shared modules - dev docs" },
     { "erpDir": "src/api/", "docSection": "latest/arquitetura/", "description": "API layer - architecture docs" },
     { "erpDir": "src/shared/", "docSection": "latest/arquitetura/", "description": "Shared utilities - architecture docs" },
-    { "erpDir": "src/_metronic/", "docSection": null, "description": "Metronic template - always skip" }
+    { "erpDir": "src/_metronic/", "docSection": null, "description": "Metronic template - always skip" },
+    { "erpDir": "src/", "docSection": null, "description": "Catch-all - unmapped src dirs are skipped" }
   ]
 }

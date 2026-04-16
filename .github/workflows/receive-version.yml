@@ -124,6 +124,9 @@ jobs:
           fs.writeFileSync('pr-body.md', body);
           "
 
+      - name: Cleanup temp artifacts
+        run: rm -rf erp-repo generate-result.json generate-errors.log
+
       - name: Commit and create PR
         run: |
           git config user.name "github-actions[bot]"
@@ -131,7 +134,7 @@ jobs:
           CLEAN_VERSION="${VERSION#v}"
           BRANCH="docs/v${CLEAN_VERSION}-update"
           git checkout -B "$BRANCH"
-          git add -A
+          git add src/ astro.config.mjs
           git diff --cached --quiet && echo "No changes to commit" && exit 0
           git commit -m "docs(ai): update v${CLEAN_VERSION} content + snapshot"
           git push origin "$BRANCH" --force
