@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/Despensinha/easypdv-admin-dev-docs/compare/v1.2.1...v1.3.0) (2026-04-16)
+
+
+### Features
+
+* **pipeline:** handle deleted ERP files by removing corresponding docs ([b4c6be1](https://github.com/Despensinha/easypdv-admin-dev-docs/commit/b4c6be104cef96918deefba67458bceed782b84b))
+
 ## [1.2.1](https://github.com/Despensinha/easypdv-admin-dev-docs/compare/v1.2.0...v1.2.1) (2026-04-16)
 
 
