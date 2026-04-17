@@ -62,6 +62,70 @@ function MyComponent() {
 }
 ```
 
+## Permissões de Acesso
+
+O módulo de autenticação também participa do controle de acesso por permissões por meio de `AbilityProtectedRoute`. A navegação e a renderização de páginas protegidas dependem do conjunto de permissões disponível no usuário autenticado.
+
+### Componentes e responsabilidades
+
+| Componente | Responsabilidade |
+|------------|-----------------|
+| `AbilityProtectedRoute` | Valida se o usuário possui a permissão exigida para renderizar a rota |
+| `PERMISSIONS` | Constantes de autorização usadas nas rotas protegidas |
+| `AuthContext` | Disponibiliza o usuário atual para regras de acesso e hooks consumidores |
+
+### Fluxo de autorização
+
+1. A aplicação lê o usuário autenticado a partir do `AuthContext`.
+2. As rotas protegidas recebem a permissão esperada em `permission`.
+3. `AbilityProtectedRoute` verifica se o usuário possui a permissão.
+4. Se a permissão existir, o componente filho é renderizado; caso contrário, a navegação é bloqueada pela regra de acesso da aplicação.
+
+### Exemplos de uso
+
+#### Dashboard
+A rota `dashboard/*` é encapsulada por `AbilityProtectedRoute` com a permissão `PERMISSIONS.DASHBOARD`.
+
+```tsx
+<Route
+  element={
+    <AbilityProtectedRoute permission={PERMISSIONS.DASHBOARD}>
+      <DashboardWrapper />
+    </AbilityProtectedRoute>
+  }
+  path="dashboard/*"
+/>
+```
+
+#### Relatórios
+O módulo de relatórios usa permissões específicas para cada grupo de páginas e subrotas. Cada rota recebe uma permissão do objeto `PERMISSIONS`, como:
+
+| Rota | Permissão |
+|------|------------|
+| `/relatorios/vendas/geral` | `PERMISSIONS.RELATORIOS_VENDAS_VENDAS` |
+| `/relatorios/vendas/produtos-nao-encontrados` | `PERMISSIONS.RELATORIOS_VENDAS_PRODUTOS_NAO_ENCONTRADOS` |
+| `/relatorios/vendas/venda-financa` | `PERMISSIONS.RELATORIOS_VENDAS_VENDA_E_FINANCA` |
+| `/relatorios/suprimentos/estoque/entrada-saida` | `PERMISSIONS.RELATORIOS_SUPRIMENTOS_ESTOQUE_ENTRADA_SAIDA` |
+| `/relatorios/financeiro/geral/balancete` | `PERMISSIONS.RELATORIOS_FINANCEIRO_BALANCETE` |
+
+### Estrutura de rota protegida
+
+```tsx
+<Route
+  element={
+    <AbilityProtectedRoute permission={PERMISSIONS.RELATORIOS_FINANCEIRO}>
+      <Routes>
+        ...
+      </Routes>
+    </AbilityProtectedRoute>
+  }
+/>
+```
+
+## Permissões e integração com a sessão
+
+A sessão autenticada alimenta a camada de autorização. O `currentUser` exposto pelo `AuthContext` serve como base para as decisões de acesso nas rotas protegidas e nos componentes que consultam permissões na interface.
+
 ## Veja Também
 
 - [Error Handling](/arquitetura/error-handling/) — Tratamento centralizado de erros, incluindo erros de autenticação
