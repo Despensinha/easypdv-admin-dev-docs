@@ -46,6 +46,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The set +e / exit_code capture is load-bearing: subsequent steps
+      # (Build PR body FAILED variant) rely on this step NOT failing the job
+      # so they still run on AI errors. Keep the pattern if refactoring.
       - name: Generate AI content
         id: generate
         run: |
@@ -56,17 +59,54 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
+      - name: Configure git and create branch
+        if: steps.generate.outputs.exit_code == '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          CLEAN_VERSION="${VERSION#v}"
+          BRANCH="docs/v${CLEAN_VERSION}-update"
+          git checkout -B "$BRANCH"
+          echo "CLEAN_VERSION=$CLEAN_VERSION" >> "$GITHUB_ENV"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Commit AI changes to latest
+        id: commit_ai
+        if: steps.generate.outputs.exit_code == '0'
+        run: |
+          git add src/content/docs/latest/
+          if git diff --cached --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No AI changes detected in latest/"
+          else
+            git commit -m "docs(ai): update latest for v${CLEAN_VERSION}"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create version snapshot
         if: steps.generate.outputs.exit_code == '0'
         run: |
-          CLEAN_VERSION="${VERSION#v}"
           bash scripts/create-snapshot.sh "$CLEAN_VERSION"
 
+      - name: Commit snapshot
+        if: steps.generate.outputs.exit_code == '0'
+        run: |
+          SLUG="v$(echo "$CLEAN_VERSION" | tr '.' '-')"
+          git add "src/content/docs/$SLUG/" src/config/versions.ts astro.config.mjs
+          git diff --cached --quiet && echo "Nothing to commit for snapshot (unexpected)" && exit 1
+          git commit -m "docs(snapshot): v${CLEAN_VERSION}"
+
       - name: Build PR body
+        env:
+          HAS_CHANGES: ${{ steps.commit_ai.outputs.has_changes || 'false' }}
+          EXIT_CODE: ${{ steps.generate.outputs.exit_code }}
+          CLEAN_VERSION: ${{ env.CLEAN_VERSION }}
         run: |
           node -e "
           const fs = require('fs');
-          const exitCode = '${{ steps.generate.outputs.exit_code }}';
+          const exitCode = process.env.EXIT_CODE;
+          const hasChanges = process.env.HAS_CHANGES;
+          const version = process.env.CLEAN_VERSION;
           let body = '';
 
           if (exitCode !== '0') {
@@ -83,6 +123,15 @@ jobs:
               errors || 'No error log available.',
               '\`\`\`',
             ].join('\n');
+          } else if (hasChanges !== 'true') {
+            body = [
+              '## AI Documentation Update - No Changes',
+              '',
+              '> A IA nao detectou mudancas no ERP que afetem a documentacao.',
+              '> Este PR contem apenas o snapshot mecanico da versao v' + version + ' (identico a versao anterior).',
+              '',
+              'Commit unico: \`docs(snapshot): v' + version + '\`.',
+            ].join('\n');
           } else {
             let r;
             try {
@@ -97,7 +146,16 @@ jobs:
               process.exit(0);
             }
 
-            const lines = ['## AI Documentation Update', ''];
+            const lines = [
+              '## AI Documentation Update',
+              '',
+              '> **Estrutura:** este PR contem 2 commits.',
+              '> - Commit 1 — \`docs(ai): update latest for v' + version + '\` — modificacoes da IA em \`latest/\` (foco da revisao)',
+              '> - Commit 2 — \`docs(snapshot): v' + version + '\` — copia mecanica para \`v' + version.replace(/\./g, '-') + '/\` + edits em \`versions.ts\`/\`astro.config.mjs\`',
+              '>',
+              '> Para revisar apenas as modificacoes: aba **Commits** -> selecione o commit 1.',
+              '',
+            ];
             lines.push('### Summary', r.summary || 'No summary available.', '');
 
             if (r.updated && r.updated.length > 0) {
@@ -133,17 +191,10 @@ jobs:
       - name: Cleanup temp artifacts
         run: rm -rf erp-repo generate-result.json generate-errors.log
 
-      - name: Commit and create PR
+      - name: Push and create PR
+        if: steps.generate.outputs.exit_code == '0'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          CLEAN_VERSION="${VERSION#v}"
-          BRANCH="docs/v${CLEAN_VERSION}-update"
-          git checkout -B "$BRANCH"
-          git add src/ astro.config.mjs
-          git diff --cached --quiet && echo "No changes to commit" && exit 0
-          git commit -m "docs(ai): update v${CLEAN_VERSION} content + snapshot"
-          git push origin "$BRANCH" --force
+          git push origin "$BRANCH" --force-with-lease
           gh pr create --title "docs(ai): update v${CLEAN_VERSION}" --body-file pr-body.md --base main || echo "PR already exists"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
