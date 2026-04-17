@@ -41,6 +41,11 @@ export default defineConfig({
           collapsed: true,
           items: versionSidebar('v1-27-1'),
         },
+                {
+          label: 'v1-27-2',
+          collapsed: true,
+          items: versionSidebar('v1-27-2'),
+        },
         // SNAPSHOT_INSERT_ABOVE
       ],
     }),
