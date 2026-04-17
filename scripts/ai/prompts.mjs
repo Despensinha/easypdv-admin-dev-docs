@@ -30,7 +30,15 @@ Regras:
 - Mantenha a estrutura de headings (##, ###) existente quando possivel.
 - Atualize apenas as secoes afetadas pelo diff. Preserve o restante intacto.
 - Use tabelas markdown para campos e configuracoes.
-- Escreva em pt-BR.`;
+- Escreva em pt-BR.
+
+Regras de conteudo:
+- Esta e uma documentacao do estado atual do sistema, nao um changelog.
+- NUNCA use frases que indicam que algo mudou, foi adicionado, corrigido, ajustado, modificado ou melhorado.
+- NUNCA use palavras como "agora", "recentemente", "passou a", "foi alterado", "recebeu", "foi introduzido".
+- NUNCA crie secoes que descrevam mudancas (ex: "Ajustes", "Novidades", "Mudancas recentes", "Alteracoes").
+- Escreva tudo no presente, como se o sistema sempre tivesse funcionado do jeito atual.
+- O leitor da documentacao nao conhece versoes anteriores e nao se importa com elas.`;
 
   const user = `## Pagina atual: ${pageMeta.title}
 Secao: ${pageMeta.section}
@@ -46,7 +54,7 @@ ${diff}
 
 ${pageMeta.styleExample ? `## Exemplo de estilo (referencia de tom e formato):\n${pageMeta.styleExample}` : ''}
 
-Atualize o conteudo da pagina para refletir as mudancas do diff. Retorne o corpo completo atualizado.`;
+Use o diff apenas como CONTEXTO para entender como o sistema funciona no estado atual. Atualize o conteudo da pagina descrevendo a funcionalidade como ela esta agora — nao descreva o que mudou nem que houve mudanca. Retorne o corpo completo atualizado.`;
 
   return { system, user };
 }
@@ -67,7 +75,15 @@ Regras:
 - NAO inclua frontmatter (o bloco --- no inicio). Retorne APENAS o corpo da pagina.
 - Crie uma pagina completa com headings ## para cada secao principal.
 - Use tabelas markdown para campos e configuracoes.
-- Escreva em pt-BR.`;
+- Escreva em pt-BR.
+
+Regras de conteudo:
+- Esta e uma documentacao do estado atual do sistema, nao um changelog.
+- NUNCA use frases que indicam que algo mudou, foi adicionado, corrigido, ajustado, modificado ou melhorado.
+- NUNCA use palavras como "agora", "recentemente", "passou a", "foi alterado", "recebeu", "foi introduzido".
+- NUNCA crie secoes que descrevam mudancas (ex: "Ajustes", "Novidades", "Mudancas recentes", "Alteracoes").
+- Escreva tudo no presente, como se o sistema sempre tivesse funcionado do jeito atual.
+- O leitor da documentacao nao conhece versoes anteriores e nao se importa com elas.`;
 
   const user = `## Nova pagina: ${pageMeta.title}
 Secao: ${pageMeta.section}
