@@ -5,6 +5,11 @@ sidebar:
   order: 5
 ---
 
+## Pagina atual: API e Endpoints
+Secao: arquitetura
+
+## Conteudo atual da pagina:
+
 O Despensinha ERP utiliza uma camada de API centralizada baseada no **axios**, com wrappers tipados que garantem respostas consistentes via `ApiResponse<T>`. Toda comunicacao com o backend segue um padrao uniforme: instancia axios configurada com interceptors de autenticacao e tratamento de erros, e arquivos de endpoints organizados por dominio que exportam objetos constantes com paths estaticos e funcoes para paths dinamicos.
 
 ## Configuracao do Axios
@@ -49,7 +54,7 @@ const put = <R = any, D = any>(url: string, data?: D, config?: AxiosRequestConfi
 };
 
 const patch = <R = any, D = any>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<ApiResponse<R>> => {
-  return client.patch<ApiResponse<R>>(url, data, config).then(response => response.data);
+  return client.patch<ApiResponse<R>>(url, data, config).then(response.data);
 };
 
 const destroy = <R = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<R>> => {
@@ -62,7 +67,7 @@ const destroy = <R = any>(url: string, config?: AxiosRequestConfig): Promise<Api
 | `get`     | GET         | Nao         | Listagens, detalhes         |
 | `post`    | POST        | Sim         | Criacao de recursos         |
 | `put`     | PUT         | Sim         | Atualizacao completa        |
-| `patch`   | PATCH       | Sim         | Atualizacao parcial         |
+| `patch`    | PATCH       | Sim         | Atualizacao parcial         |
 | `destroy` | DELETE      | Nao         | Remocao de recursos         |
 
 ### Tipo ApiResponse
@@ -295,7 +300,7 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | ConversionUnitEndpoints | `deleteBatch` | `/preferences/conversion-unit/del/batch` | Excluir em lote |
 | ConversionUnitEndpoints | `toggleStatusBatch` | `/preferences/conversion-unit/status/batch` | Ativar/desativar em lote |
 
-### Vendas (7 arquivos)
+### Vendas (8 arquivos)
 
 | Arquivo | Propriedade | Path | Descricao |
 |---------|-------------|------|-----------|
@@ -319,6 +324,19 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | SalesReportEndpoints | `invoiceProduct` | `/sales/reports/invoice/product` | Relatorio por produto |
 | SalesReportEndpoints | `invoiceProgress` | `/sales/reports/invoice/progress` | Relatorio de progresso fiscal |
 | SalesReportEndpoints | `invoiceIcms` | `/sales/reports/invoice/icms` | Relatorio de ICMS |
+| SalesOccurrenceEndpoints | `list` | `/sales/occurrence/list` | Listar ocorrencias de venda |
+| SalesOccurrenceEndpoints | `add` | `/sales/occurrence/add` | Criar ocorrencia de venda |
+| SalesOccurrenceEndpoints | `edit(id)` | `/sales/occurrence/edit/{id}` | Editar ocorrencia de venda |
+| SalesOccurrenceEndpoints | `details(id)` | `/sales/occurrence/{id}` | Detalhes da ocorrencia |
+| SalesOccurrenceEndpoints | `changeStatus(id)` | `/sales/occurrence/{id}/status` | Alterar status da ocorrencia |
+| SalesOccurrenceEndpoints | `delete(id)` | `/sales/occurrence/{id}` | Excluir ocorrencia |
+| SalesOccurrenceEndpoints | `addEvidence(id)` | `/sales/occurrence/{id}/evidence/add` | Adicionar evidencia |
+| SalesOccurrenceEndpoints | `addItem(id)` | `/sales/occurrence/{id}/item/add` | Adicionar item |
+| SalesOccurrenceEndpoints | `addComment(id)` | `/sales/occurrence/{id}/comment/add` | Adicionar comentario |
+| SalesOccurrenceEndpoints | `updateEvidence(id, evidenceId)` | `/sales/occurrence/{id}/evidence/{evidenceId}` | Atualizar evidencia |
+| SalesOccurrenceEndpoints | `deleteEvidence(id, evidenceId)` | `/sales/occurrence/{id}/evidence/{evidenceId}` | Excluir evidencia |
+| SalesOccurrenceEndpoints | `updateItem(id, itemId)` | `/sales/occurrence/{id}/item/{itemId}` | Atualizar item |
+| SalesOccurrenceEndpoints | `deleteItem(id, itemId)` | `/sales/occurrence/{id}/item/{itemId}` | Excluir item |
 | PlanogramEndpoints | `list` | `/sales/planogram/list` | Listar planogramas |
 | PlanogramEndpoints | `add` | `/sales/planogram/add` | Criar planograma |
 | PlanogramEndpoints | `details(id)` | `/sales/planogram/{id}` | Detalhes do planograma |
@@ -850,7 +868,7 @@ O ERP Despensinha possui **90 arquivos de endpoints** distribuidos em 11 dominio
 | Auth | 1 | 6 |
 | Conta/Usuarios | 5 | 44 |
 | Catalogo | 5 | 46 |
-| Vendas | 7 | 45 |
+| Vendas | 8 | 60 |
 | Financeiro | 14 | 96 |
 | Suprimentos/Estoque | 17 | 105 |
 | NFe/Fiscal | 11 | 85 |
@@ -858,6 +876,6 @@ O ERP Despensinha possui **90 arquivos de endpoints** distribuidos em 11 dominio
 | Sistema/Configuracao | 10 | 29 |
 | Dashboard | 3 | 23 |
 | Outros | 12 | 62 |
-| **Total** | **90** | **571** |
+| **Total** | **90** | **586** |
 
 Todos os endpoints seguem o padrao de objetos constantes exportados, com paths estaticos para operacoes sem parametros e arrow functions para paths dinamicos. Os wrappers tipados em `axios.ts` garantem que todas as chamadas retornem `ApiResponse<T>`, mantendo consistencia na camada de comunicacao.
