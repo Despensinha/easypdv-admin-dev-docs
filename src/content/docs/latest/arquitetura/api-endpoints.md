@@ -29,7 +29,22 @@ const axiosConfig = {
 const client = axios.create(axiosConfig);
 ```
 
-A `baseURL` vem da variavel de ambiente `VITE_APP_API_URL`, configurada em `.env.development` para desenvolvimento e injetada pelo CI/CD em producao.
+A `baseURL` vem da variavel de ambiente `VITE_APP_API_URL`, configurada em `.env.development` para desenvolvimento e injetada pelo CI/CD em producao. O carregamento das variaveis de ambiente passa pela funcao `getProjectEnvVariables()` em `src/shared/projectEnvVariables.ts`, que resolve valores vindos de placeholders de container ou de `import.meta.env`.
+
+### Variaveis de Ambiente
+
+A camada de ambiente usa o tipo `ProjectEnvVariablesType` e expoe os valores por meio de `getProjectEnvVariables()`.
+
+| Variavel | Descricao | Origem tipica |
+|----------|-----------|---------------|
+| `VITE_GENERATE_SOURCEMAP` | Controla a geracao de sourcemaps | Build ou container |
+| `VITE_APP_API_URL` | URL base da API | Build ou container |
+| `VITE_APP_NEWS_API_URL` | URL base da API de noticias | Build ou container |
+| `VITE_APP_CHATWOOT_BASE_URL` | URL base do Chatwoot | Build ou container |
+| `VITE_APP_CHATWOOT_INBOX_IDENTIFIER` | Identificador da inbox do Chatwoot | Build ou container |
+| `VITE_APP_GOOGLE_CLIENT_ID` | Client ID do Google OAuth | Build ou container |
+
+A resolucao usa a logica de placeholder: quando o valor ainda contem `VITE_`, a aplicacao le de `import.meta.env`; quando o valor ja foi substituido, o valor injetado e usado diretamente.
 
 ### Wrappers Tipados
 
@@ -107,39 +122,64 @@ O formato do header e `{type} {token}`, onde `type` e tipicamente `"Bearer"`.
 
 ### Response Interceptor
 
-Trata respostas com `success: false` e implementa refresh automatico de token quando recebe status 401:
+Trata respostas com `success: false` e implementa refresh automatico de token quando recebe status 401.
+
+O fluxo de renovacao usa uma promessa compartilhada em memoria para centralizar requisicoes concorrentes de refresh. A funcao auxiliar `getRefreshedAuth(refreshTokenValue)` guarda a operacao em `refreshPromise`, faz a chamada para `refreshToken`, persiste o novo `AuthModel` com `setAuth()` e libera a promise ao finalizar.
+
+```typescript
+let refreshPromise: Promise<AuthModel> | null = null;
+
+const getRefreshedAuth = (refreshTokenValue: string): Promise<AuthModel> => {
+    if (!refreshPromise) {
+        refreshPromise = refreshToken(refreshTokenValue)
+            .then(rs => {
+                setAuth(rs.data)
+                return rs.data
+            })
+            .finally(() => {
+                refreshPromise = null
+            })
+    }
+    return refreshPromise
+}
+```
+
+O interceptor de resposta utiliza esse fluxo para reenviar a requisicao original com o novo token:
 
 ```typescript
 const onResponse = async (response: AxiosResponse<ApiResponse>): Promise<AxiosResponse> => {
-  if (!response.data.success) {
-    const originalRequest = response.config as CustomAxiosRequestConfig;
-    const auth = getAuth();
-    const errorResult = new ApiResponseError(response.data);
+    if (!response.data.success) {
+        const originalRequest = response.config as CustomAxiosRequestConfig
+        const auth = getAuth()
+        const errorResult = new ApiResponseError(response.data)
 
-    if (errorResult.status === 401 && auth?.refresh_token && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        const rs = await refreshToken(auth.refresh_token);
-        setAuth(rs.data);
-        originalRequest.headers['Authorization'] = 'Bearer ' + rs.data.token;
-        return client(originalRequest);
-      } catch (error) {
-        removeAuth();
-        return Promise.reject(error);
-      }
+        if (errorResult.status === 401 && auth?.refresh_token && !originalRequest._retry) {
+            originalRequest._retry = true
+            try {
+                const newAuth = await getRefreshedAuth(auth.refresh_token);
+                originalRequest.headers['Authorization'] = 'Bearer ' + newAuth.token
+                return client(originalRequest);
+            } catch (error: unknown) {
+                if (axios.isAxiosError(error) && error.response?.data) {
+                    return Promise.reject(new ApiResponseError(error.response.data));
+                }
+                removeAuth();
+                return Promise.reject(error);
+            }
+        }
+        return Promise.reject(errorResult);
     }
-    return Promise.reject(errorResult);
-  }
-  return Promise.resolve(response);
+    return Promise.resolve(response);
 };
 ```
 
 **Fluxo de refresh:**
 
 1. Requisicao retorna `success: false` com status 401
-2. Se existe `refresh_token` e a requisicao nao e uma retry, tenta renovar o token
-3. Em caso de sucesso, atualiza o auth e reenvia a requisicao original
-4. Em caso de falha no refresh, remove a autenticacao e rejeita a promise
+2. Se existe `refresh_token` e a requisicao nao e uma retry, a renovacao e solicitada
+3. Requisicoes concorrentes compartilham a mesma promise de refresh
+4. Em caso de sucesso, a autenticacao e atualizada e a requisicao original e reenviada
+5. Em caso de falha no refresh, a resposta de erro e convertida em `ApiResponseError` quando possivel; caso contrario, a autenticacao e removida e a promise e rejeitada
 
 ## Padrao de Endpoints
 
@@ -170,20 +210,20 @@ export const ProductEndpoints = {
 
 ### Convencoes Comuns
 
-| Propriedade        | Tipo       | Descricao                                      |
-|--------------------|------------|-------------------------------------------------|
-| `list`             | string     | Listagem paginada do recurso                    |
-| `add`              | string     | Criacao de novo recurso                         |
-| `edit(id)`         | funcao     | Atualizacao de recurso por ID                   |
-| `details(id)`      | funcao     | Detalhes de recurso por ID                      |
-| `delete(id)`       | funcao     | Remocao de recurso por ID                       |
-| `toggleStatus(id)` | funcao     | Ativar/desativar recurso por ID                 |
-| `deleteBatch`      | string     | Remocao em lote                                 |
-| `toggleStatusBatch`| string     | Ativar/desativar em lote                        |
+| Propriedade         | Tipo   | Descricao                               |
+|--------------------|--------|------------------------------------------|
+| `list`             | string | Listagem paginada do recurso             |
+| `add`              | string | Criacao de novo recurso                  |
+| `edit(id)`         | funcao | Atualizacao de recurso por ID            |
+| `details(id)`      | funcao | Detalhes de recurso por ID               |
+| `delete(id)`       | funcao | Remocao de recurso por ID                |
+| `toggleStatus(id)`  | funcao | Ativar/desativar recurso por ID          |
+| `deleteBatch`       | string | Remocao em lote                          |
+| `toggleStatusBatch` | string | Ativar/desativar em lote                 |
 
 ## Catalogo de Endpoints
 
-O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, o catalogo completo de cada arquivo com todas as suas propriedades.
+O ERP possui **92 arquivos de endpoints** organizados em 11 dominios. A seguir, o catalogo completo de cada arquivo com todas as suas propriedades.
 
 ### Auth (1 arquivo)
 
@@ -714,6 +754,7 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | SystemEndpoints | `modules` | `/system/modules` | Modulos disponiveis |
 | SystemEndpoints | `plan` | `/system/plan` | Plano do sistema |
 | SystemEndpoints | `billing` | `/system/billing` | Cobranca do sistema |
+| SystemEndpoints | `clientApp` | `/system/client-app` | Aplicacao cliente do sistema |
 | SystemTypeEndpoints | `list` | `/system-type/list` | Listar tipos de sistema |
 | SystemTypeEndpoints | `getSystemTypeByClassName(className)` | `/system-type/{className}` | Buscar tipo por classe |
 | CompanyInformationEndpoints | `edit` | `/preferences/company` | Editar dados da empresa |
@@ -766,15 +807,24 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | DashboardSalesEndpoints | `bestSellersCategories` | `/dashboard/sales/best-sellers/categories` | Categorias mais vendidas |
 | DashboardSalesEndpoints | `averageTicket` | `/dashboard/sales/average-ticket` | Ticket medio |
 
-### Outros (12 arquivos)
+### Outros (14 arquivos)
 
 | Arquivo | Propriedade | Path | Descricao |
 |---------|-------------|------|-----------|
-| HomeEndpoints | `setupGuide` | `/home/setup-guide` | Guia de configuracao |
 | HomeEndpoints | `announcements` | `/home/announcements` | Anuncios |
 | HomeEndpoints | `news` | `/home/news` | Novidades |
 | HomeEndpoints | `modules` | `/home/modules` | Modulos disponiveis |
 | HomeEndpoints | `dismissFirstAccess` | `/account/first-access` | Dispensar primeiro acesso |
+| PushNotificationEndpoints | `list` | `/push-notification/list` | Listar push notifications |
+| PushNotificationEndpoints | `add` | `/push-notification/add` | Criar push notification |
+| PushNotificationEndpoints | `details(id)` | `/push-notification/{id}` | Detalhes da push notification |
+| PushNotificationEndpoints | `update(id)` | `/push-notification/{id}` | Atualizar push notification |
+| PushNotificationEndpoints | `send(id)` | `/push-notification/{id}/send` | Enviar push notification |
+| PushNotificationEndpoints | `cancel(id)` | `/push-notification/{id}/cancel` | Cancelar envio |
+| PushNotificationEndpoints | `consumers` | `/push-notification/consumer/list` | Listar consumidores |
+| SetupGuideEndpoints | `state` | `/setup-guide/state` | Estado do guia de configuracao |
+| SetupGuideEndpoints | `dismiss` | `/setup-guide/dismiss` | Dispensar guia de configuracao |
+| SetupGuideEndpoints | `stepSkip(code)` | `/setup-guide/steps/{code}/skip` | Pular etapa do guia |
 | ScheduleEndpoints | `list` | `/schedule/list` | Listar agendamentos |
 | ScheduleEndpoints | `add` | `/schedule/add` | Criar agendamento |
 | ScheduleEndpoints | `edit(id)` | `/schedule/edit/{id}` | Editar agendamento |
@@ -840,10 +890,12 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | NotificationsEndpoints | `stream` | `/notification/stream` | Stream de notificacoes (SSE) |
 | BarcodeNotFoundEndpoints | `list` | `/sales/reports/barcode-not-found` | Listar codigos de barras nao encontrados |
 | BarcodeNotFoundEndpoints | `addToPlanogram` | `/sales/reports/barcode-not-found/add-to-planogram` | Adicionar ao planograma |
+| SupportPageEndpoints | `support` | `/suporte` | Pagina de suporte |
+| SystemUserEndpoints | `dashboard` | `/inicio/indice` | Indice do usuario do sistema |
 
 ## Resumo
 
-O ERP Despensinha possui **90 arquivos de endpoints** distribuidos em 11 dominios:
+O ERP Despensinha possui **92 arquivos de endpoints** distribuidos em 11 dominios:
 
 | Dominio | Arquivos | Endpoints |
 |---------|----------|-----------|
@@ -855,9 +907,9 @@ O ERP Despensinha possui **90 arquivos de endpoints** distribuidos em 11 dominio
 | Suprimentos/Estoque | 17 | 105 |
 | NFe/Fiscal | 11 | 85 |
 | Contatos | 5 | 30 |
-| Sistema/Configuracao | 10 | 29 |
+| Sistema/Configuracao | 10 | 30 |
 | Dashboard | 3 | 23 |
-| Outros | 12 | 62 |
-| **Total** | **90** | **571** |
+| Outros | 14 | 76 |
+| **Total** | **92** | **586** |
 
 Todos os endpoints seguem o padrao de objetos constantes exportados, com paths estaticos para operacoes sem parametros e arrow functions para paths dinamicos. Os wrappers tipados em `axios.ts` garantem que todas as chamadas retornem `ApiResponse<T>`, mantendo consistencia na camada de comunicacao.
