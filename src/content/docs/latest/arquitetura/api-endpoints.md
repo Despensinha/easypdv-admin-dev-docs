@@ -5,11 +5,15 @@ sidebar:
   order: 5
 ---
 
-O Despensinha ERP utiliza uma camada de API centralizada baseada no **axios**, com wrappers tipados que garantem respostas consistentes via `ApiResponse<T>`. Toda comunicacao com o backend segue um padrao uniforme: instancia axios configurada com interceptors de autenticacao e tratamento de erros, e arquivos de endpoints organizados por dominio que exportam objetos constantes com paths estaticos e funcoes para paths dinamicos.
+## arquitetura
+
+O Despensinha ERP utiliza uma camada de API centralizada baseada no **axios**, com wrappers tipados que garantem respostas consistentes via `ApiResponse<T>`. Toda comunicação com o backend segue um padrão uniforme: uma instância de axios configurada com interceptors de autenticação e tratamento de erros, e arquivos de endpoints organizados por domínio que exportam objetos constantes com paths estáticos e funções para paths dinâmicos.
+
+A camada também trata respostas binárias e fluxos de streaming de forma diferenciada, permitindo que requisições com `responseType` `blob`, `arraybuffer` ou `stream` retornem dados crus sem validação do envelope `ApiResponse`.
 
 ## Configuracao do Axios
 
-A instancia do axios e criada em `src/api/axios.ts` com a seguinte configuracao base:
+A instância do axios é criada em `src/api/axios.ts` com a seguinte configuração base:
 
 ```typescript
 import axios from 'axios';
@@ -29,11 +33,11 @@ const axiosConfig = {
 const client = axios.create(axiosConfig);
 ```
 
-A `baseURL` vem da variavel de ambiente `VITE_APP_API_URL`, configurada em `.env.development` para desenvolvimento e injetada pelo CI/CD em producao.
+A `baseURL` vem da variável de ambiente `VITE_APP_API_URL`, configurada em `.env.development` para desenvolvimento e injetada pelo CI/CD em produção.
 
 ### Wrappers Tipados
 
-O arquivo exporta cinco funcoes wrapper que encapsulam os metodos HTTP do axios, todas retornando `Promise<ApiResponse<R>>`:
+O arquivo exporta cinco funções wrapper que encapsulam os métodos HTTP do axios, todas retornando `Promise<ApiResponse<R>>`:
 
 ```typescript
 const get = <R = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<R>> => {
@@ -87,11 +91,11 @@ export interface FieldError {
 
 ## Interceptors
 
-Os interceptors sao configurados pela funcao `setupAxios()` e gerenciam autenticacao e tratamento de erros automaticamente.
+Os interceptors são configurados pela função `setupAxios()` e gerenciam autenticação, tratamento de erros e fluxo de respostas especiais automaticamente.
 
 ### Request Interceptor
 
-Adiciona o header `Authorization` com o token do usuario autenticado em todas as requisicoes (exceto refresh token):
+Adiciona o header `Authorization` com o token do usuário autenticado em todas as requisições, exceto refresh token:
 
 ```typescript
 const onRequest = (config: CustomAxiosRequestConfig): CustomAxiosRequestConfig => {
@@ -103,14 +107,19 @@ const onRequest = (config: CustomAxiosRequestConfig): CustomAxiosRequestConfig =
 };
 ```
 
-O formato do header e `{type} {token}`, onde `type` e tipicamente `"Bearer"`.
+O formato do header é `{type} {token}`, onde `type` é tipicamente `"Bearer"`.
 
 ### Response Interceptor
 
-Trata respostas com `success: false` e implementa refresh automatico de token quando recebe status 401:
+Trata respostas com `success: false`, implementa refresh automático de token quando recebe status 401 e libera respostas binárias ou de streaming sem validar o envelope da API:
 
 ```typescript
-const onResponse = async (response: AxiosResponse<ApiResponse>): Promise<AxiosResponse> => {
+const onResponse = async (response: AxiosResponse<ApiResponse>): Promise<AxiosResponse<any, any>> => {
+  const responseType = response.config?.responseType;
+  if (responseType === 'blob' || responseType === 'arraybuffer' || responseType === 'stream') {
+    return Promise.resolve(response);
+  }
+
   if (!response.data.success) {
     const originalRequest = response.config as CustomAxiosRequestConfig;
     const auth = getAuth();
@@ -136,17 +145,23 @@ const onResponse = async (response: AxiosResponse<ApiResponse>): Promise<AxiosRe
 
 **Fluxo de refresh:**
 
-1. Requisicao retorna `success: false` com status 401
-2. Se existe `refresh_token` e a requisicao nao e uma retry, tenta renovar o token
-3. Em caso de sucesso, atualiza o auth e reenvia a requisicao original
-4. Em caso de falha no refresh, remove a autenticacao e rejeita a promise
+1. Requisição retorna `success: false` com status 401
+2. Se existe `refresh_token` e a requisição não é uma retry, tenta renovar o token
+3. Em caso de sucesso, atualiza o auth e reenviá a requisição original
+4. Em caso de falha no refresh, remove a autenticação e rejeita a promise
+
+**Fluxo de respostas binárias e streaming:**
+
+1. A requisição define `responseType` como `blob`, `arraybuffer` ou `stream`
+2. O interceptor retorna a resposta sem interpretar `response.data.success`
+3. O consumidor recebe os dados crus e processa o conteúdo conforme o tipo esperado
 
 ## Padrao de Endpoints
 
-Cada dominio do ERP possui um arquivo `{Domain}Endpoints.ts` em `src/api/endpoints/` que exporta um objeto constante com todos os paths daquele dominio. O padrao segue duas convencoes:
+Cada domínio do ERP possui um arquivo `{Domain}Endpoints.ts` em `src/api/endpoints/` que exporta um objeto constante com todos os paths daquele domínio. O padrão segue duas convenções:
 
-- **Paths estaticos**: propriedades string para rotas sem parametros (listagens, criacao)
-- **Paths dinamicos**: arrow functions que recebem parametros e retornam a string do path
+- **Paths estáticos**: propriedades string para rotas sem parâmetros (listagens, criação)
+- **Paths dinâmicos**: arrow functions que recebem parâmetros e retornam a string do path
 
 ### Exemplo: ProductEndpoints
 
@@ -170,20 +185,20 @@ export const ProductEndpoints = {
 
 ### Convencoes Comuns
 
-| Propriedade        | Tipo       | Descricao                                      |
-|--------------------|------------|-------------------------------------------------|
-| `list`             | string     | Listagem paginada do recurso                    |
-| `add`              | string     | Criacao de novo recurso                         |
-| `edit(id)`         | funcao     | Atualizacao de recurso por ID                   |
-| `details(id)`      | funcao     | Detalhes de recurso por ID                      |
-| `delete(id)`       | funcao     | Remocao de recurso por ID                       |
-| `toggleStatus(id)` | funcao     | Ativar/desativar recurso por ID                 |
-| `deleteBatch`      | string     | Remocao em lote                                 |
-| `toggleStatusBatch`| string     | Ativar/desativar em lote                        |
+| Propriedade         | Tipo       | Descricao                                      |
+|---------------------|------------|-------------------------------------------------|
+| `list`              | string     | Listagem paginada do recurso                    |
+| `add`               | string     | Criacao de novo recurso                         |
+| `edit(id)`          | funcao     | Atualizacao de recurso por ID                   |
+| `details(id)`       | funcao     | Detalhes de recurso por ID                      |
+| `delete(id)`        | funcao     | Remocao de recurso por ID                       |
+| `toggleStatus(id)`   | funcao     | Ativar/desativar recurso por ID                 |
+| `deleteBatch`       | string     | Remocao em lote                                 |
+| `toggleStatusBatch` | string     | Ativar/desativar em lote                        |
 
 ## Catalogo de Endpoints
 
-O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, o catalogo completo de cada arquivo com todas as suas propriedades.
+O ERP possui **90 arquivos de endpoints** organizados em 11 domínios. A seguir, o catálogo completo de cada arquivo com todas as suas propriedades.
 
 ### Auth (1 arquivo)
 
@@ -332,12 +347,12 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | PlanogramEndpoints | `deleteItem(id)` | `/sales/planogram/del-item/{id}` | Excluir item do planograma |
 | PlanogramEndpoints | `itemDetails(id)` | `/sales/planogram/item/{id}` | Detalhes do item |
 | PlanogramEndpoints | `productPlanogramSummary(productId)` | `/sales/planogram/product-summary/{productId}` | Resumo do produto no planograma |
-| PromotionEndpoints | `list` | `/sales/promotion/list` | Listar promocoes |
-| PromotionEndpoints | `add` | `/sales/promotion/add` | Criar promocao |
-| PromotionEndpoints | `edit(id)` | `/sales/promotion/edit/{id}` | Editar promocao |
-| PromotionEndpoints | `details(id)` | `/sales/promotion/{id}` | Detalhes da promocao |
-| PromotionEndpoints | `delete(id)` | `/sales/promotion/del/{id}` | Excluir promocao |
-| PromotionEndpoints | `toggleStatus(id)` | `/sales/promotion/status/{id}` | Ativar/desativar promocao |
+| PromotionEndpoints | `list` | `/sales/promotion/list` | Listar promoções |
+| PromotionEndpoints | `add` | `/sales/promotion/add` | Criar promoção |
+| PromotionEndpoints | `edit(id)` | `/sales/promotion/edit/{id}` | Editar promoção |
+| PromotionEndpoints | `details(id)` | `/sales/promotion/{id}` | Detalhes da promoção |
+| PromotionEndpoints | `delete(id)` | `/sales/promotion/del/{id}` | Excluir promoção |
+| PromotionEndpoints | `toggleStatus(id)` | `/sales/promotion/status/{id}` | Ativar/desativar promoção |
 | CouponListEndpoints | `list` | `/sales/coupon/list` | Listar cupons |
 | CouponListEndpoints | `add` | `/sales/coupon/add` | Criar cupom |
 | CouponListEndpoints | `edit(id)` | `/sales/coupon/edit/{id}` | Editar cupom |
@@ -362,21 +377,21 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | BillsToReceiveEndpoints | `details(id)` | `/finance/bills-to-receive/{id}` | Detalhes da conta a receber |
 | BillsToReceiveEndpoints | `allToGet` | `/finance/bills-to-receive/all-to-get` | Todas as contas a receber pendentes |
 | CashFlowEndpoints | `list` | `/finance/cash-flow/list` | Listar fluxo de caixa |
-| CashFlowEndpoints | `edit(id)` | `/finance/cash-flow/edit/{id}` | Editar lancamento |
-| CashFlowEndpoints | `details(id)` | `/finance/cash-flow/{id}` | Detalhes do lancamento |
-| CashFlowEndpoints | `delete(id)` | `/finance/cash-flow/del/{id}` | Excluir lancamento |
-| CashFlowEndpoints | `addCashFlowOut` | `/finance/cash-flow/out` | Lancamento de saida |
-| CashFlowEndpoints | `addCashFlowIn` | `/finance/cash-flow/in` | Lancamento de entrada |
-| CashFlowEndpoints | `addCashFlowBalance` | `/finance/cash-flow/balance` | Lancamento de saldo |
-| CompetenceEndpoints | `list` | `/finance/competence/list` | Listar competencias |
-| CompetenceEndpoints | `details(id)` | `/finance/competence/{id}` | Detalhes da competencia |
-| CompetenceEndpoints | `delete(id)` | `/finance/competence/del/{id}` | Excluir competencia |
-| BankAccountEndpoints | `list` | `/preferences/bank-account/list` | Listar contas bancarias |
-| BankAccountEndpoints | `add` | `/preferences/bank-account/add` | Adicionar conta bancaria |
-| BankAccountEndpoints | `edit(id)` | `/preferences/bank-account/edit/{id}` | Editar conta bancaria |
-| BankAccountEndpoints | `details(id)` | `/preferences/bank-account/{id}` | Detalhes da conta bancaria |
-| BankAccountEndpoints | `delete(id)` | `/preferences/bank-account/del/{id}` | Excluir conta bancaria |
-| BankAccountEndpoints | `toggleStatus(id)` | `/preferences/bank-account/status/{id}` | Ativar/desativar conta bancaria |
+| CashFlowEndpoints | `edit(id)` | `/finance/cash-flow/edit/{id}` | Editar lançamento |
+| CashFlowEndpoints | `details(id)` | `/finance/cash-flow/{id}` | Detalhes do lançamento |
+| CashFlowEndpoints | `delete(id)` | `/finance/cash-flow/del/{id}` | Excluir lançamento |
+| CashFlowEndpoints | `addCashFlowOut` | `/finance/cash-flow/out` | Lançamento de saída |
+| CashFlowEndpoints | `addCashFlowIn` | `/finance/cash-flow/in` | Lançamento de entrada |
+| CashFlowEndpoints | `addCashFlowBalance` | `/finance/cash-flow/balance` | Lançamento de saldo |
+| CompetenceEndpoints | `list` | `/finance/competence/list` | Listar competências |
+| CompetenceEndpoints | `details(id)` | `/finance/competence/{id}` | Detalhes da competência |
+| CompetenceEndpoints | `delete(id)` | `/finance/competence/del/{id}` | Excluir competência |
+| BankAccountEndpoints | `list` | `/preferences/bank-account/list` | Listar contas bancárias |
+| BankAccountEndpoints | `add` | `/preferences/bank-account/add` | Adicionar conta bancária |
+| BankAccountEndpoints | `edit(id)` | `/preferences/bank-account/edit/{id}` | Editar conta bancária |
+| BankAccountEndpoints | `details(id)` | `/preferences/bank-account/{id}` | Detalhes da conta bancária |
+| BankAccountEndpoints | `delete(id)` | `/preferences/bank-account/del/{id}` | Excluir conta bancária |
+| BankAccountEndpoints | `toggleStatus(id)` | `/preferences/bank-account/status/{id}` | Ativar/desativar conta bancária |
 | BankAccountEndpoints | `deleteBatch` | `/preferences/bank-account/del/batch` | Excluir em lote |
 | BankAccountEndpoints | `toggleStatusBatch` | `/preferences/bank-account/status/batch` | Ativar/desativar em lote |
 | BankEndpoints | `list` | `/preferences/bank/list` | Listar bancos |
@@ -395,7 +410,7 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | FinancialAccountEndpoints | `toggleStatus(id)` | `/preferences/financial-account/status/{id}` | Ativar/desativar conta financeira |
 | FinancialAccountEndpoints | `deleteBatch` | `/preferences/financial-account/del/batch` | Excluir em lote |
 | FinancialAccountEndpoints | `toggleStatusBatch` | `/preferences/financial-account/status/batch` | Ativar/desativar em lote |
-| FinancialAccountEndpoints | `setDefault(id)` | `/preferences/financial-account/default/{id}` | Definir conta padrao |
+| FinancialAccountEndpoints | `setDefault(id)` | `/preferences/financial-account/default/{id}` | Definir conta padrão |
 | FinancialCategoryGroupEndpoints | `list` | `/preferences/financial-category-group/list` | Listar grupos de categoria financeira |
 | FinancialCategoryGroupEndpoints | `add` | `/preferences/financial-category-group/add` | Adicionar grupo |
 | FinancialCategoryGroupEndpoints | `edit(id)` | `/preferences/financial-category-group/edit/{id}` | Editar grupo |
@@ -412,8 +427,8 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | GatewayEndpoints | `toggleStatus(id)` | `/preferences/gateway/status/{id}` | Ativar/desativar gateway |
 | GatewayEndpoints | `deleteBatch` | `/preferences/gateway/del/batch` | Excluir em lote |
 | GatewayEndpoints | `toggleStatusBatch` | `/preferences/gateway/status/batch` | Ativar/desativar em lote |
-| GatewayEndpoints | `listGatewayServices` | `/preferences/gateway/service/list` | Listar servicos de gateway |
-| GatewayEndpoints | `testConnection(id)` | `/preferences/gateway/test-connection/{id}` | Testar conexao do gateway |
+| GatewayEndpoints | `listGatewayServices` | `/preferences/gateway/service/list` | Listar serviços de gateway |
+| GatewayEndpoints | `testConnection(id)` | `/preferences/gateway/test-connection/{id}` | Testar conexão do gateway |
 | InstallmentEndpoints | `edit(id)` | `/finance/installment/edit/{id}` | Editar parcela |
 | InstallmentEndpoints | `details(id)` | `/finance/installment/{id}` | Detalhes da parcela |
 | InstallmentEndpoints | `delete(id)` | `/finance/installment/del/{id}` | Excluir parcela |
@@ -424,48 +439,48 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | PaymentEndpoints | `delete(id)` | `/finance/payment/del/{id}` | Excluir pagamento |
 | PaymentEndpoints | `cancel(id)` | `/finance/payment/cancel/{id}` | Cancelar pagamento |
 | PaymentEndpoints | `addInstallment(installmentId)` | `/finance/payment/add/{installmentId}` | Adicionar pagamento a parcela |
-| PaymentMethodEndpoints | `list` | `/preferences/payment-method/list` | Listar metodos de pagamento |
-| PaymentMethodEndpoints | `add` | `/preferences/payment-method/add` | Adicionar metodo de pagamento |
-| PaymentMethodEndpoints | `edit(id)` | `/preferences/payment-method/edit/{id}` | Editar metodo de pagamento |
-| PaymentMethodEndpoints | `details(id)` | `/preferences/payment-method/{id}` | Detalhes do metodo |
-| PaymentMethodEndpoints | `delete(id)` | `/preferences/payment-method/del/{id}` | Excluir metodo de pagamento |
-| PaymentMethodEndpoints | `toggleStatus(id)` | `/preferences/payment-method/status/{id}` | Ativar/desativar metodo |
+| PaymentMethodEndpoints | `list` | `/preferences/payment-method/list` | Listar métodos de pagamento |
+| PaymentMethodEndpoints | `add` | `/preferences/payment-method/add` | Adicionar método de pagamento |
+| PaymentMethodEndpoints | `edit(id)` | `/preferences/payment-method/edit/{id}` | Editar método de pagamento |
+| PaymentMethodEndpoints | `details(id)` | `/preferences/payment-method/{id}` | Detalhes do método |
+| PaymentMethodEndpoints | `delete(id)` | `/preferences/payment-method/del/{id}` | Excluir método de pagamento |
+| PaymentMethodEndpoints | `toggleStatus(id)` | `/preferences/payment-method/status/{id}` | Ativar/desativar método |
 | PaymentMethodEndpoints | `deleteBatch` | `/preferences/payment-method/del/batch` | Excluir em lote |
 | PaymentMethodEndpoints | `toggleStatusBatch` | `/preferences/payment-method/status/batch` | Ativar/desativar em lote |
-| ReceiptMethodEndpoints | `list` | `/preferences/receipt-method/list` | Listar metodos de recebimento |
-| ReceiptMethodEndpoints | `add` | `/preferences/receipt-method/add` | Adicionar metodo de recebimento |
-| ReceiptMethodEndpoints | `edit(id)` | `/preferences/receipt-method/edit/{id}` | Editar metodo de recebimento |
-| ReceiptMethodEndpoints | `details(id)` | `/preferences/receipt-method/{id}` | Detalhes do metodo |
-| ReceiptMethodEndpoints | `delete(id)` | `/preferences/receipt-method/del/{id}` | Excluir metodo de recebimento |
-| ReceiptMethodEndpoints | `toggleStatus(id)` | `/preferences/receipt-method/status/{id}` | Ativar/desativar metodo |
+| ReceiptMethodEndpoints | `list` | `/preferences/receipt-method/list` | Listar métodos de recebimento |
+| ReceiptMethodEndpoints | `add` | `/preferences/receipt-method/add` | Adicionar método de recebimento |
+| ReceiptMethodEndpoints | `edit(id)` | `/preferences/receipt-method/edit/{id}` | Editar método de recebimento |
+| ReceiptMethodEndpoints | `details(id)` | `/preferences/receipt-method/{id}` | Detalhes do método |
+| ReceiptMethodEndpoints | `delete(id)` | `/preferences/receipt-method/del/{id}` | Excluir método de recebimento |
+| ReceiptMethodEndpoints | `toggleStatus(id)` | `/preferences/receipt-method/status/{id}` | Ativar/desativar método |
 | ReceiptMethodEndpoints | `deleteBatch` | `/preferences/receipt-method/del/batch` | Excluir em lote |
 | ReceiptMethodEndpoints | `toggleStatusBatch` | `/preferences/receipt-method/status/batch` | Ativar/desativar em lote |
-| FinanceReportEndpoints | `balanceSheet` | `/finance/reports/balance-sheet` | Relatorio de balanco |
-| FinanceReportEndpoints | `profitAndLoss` | `/finance/reports/profit-and-loss` | Relatorio de lucros e perdas |
-| FinanceReportEndpoints | `cashFlow` | `/finance/reports/cash-flow` | Relatorio de fluxo de caixa |
-| FinanceReportEndpoints | `byCategory` | `/finance/reports/by-category` | Relatorio por categoria |
-| FinanceReportEndpoints | `byCustomer` | `/finance/reports/by-customer` | Relatorio por cliente |
-| FinanceReportEndpoints | `payables` | `/finance/reports/payables` | Relatorio de contas a pagar |
-| FinanceReportEndpoints | `receivables` | `/finance/reports/receivables` | Relatorio de contas a receber |
-| FinanceReportEndpoints | `paymentsReceived` | `/finance/reports/payments-received` | Relatorio de pagamentos recebidos |
+| FinanceReportEndpoints | `balanceSheet` | `/finance/reports/balance-sheet` | Relatório de balanço |
+| FinanceReportEndpoints | `profitAndLoss` | `/finance/reports/profit-and-loss` | Relatório de lucros e perdas |
+| FinanceReportEndpoints | `cashFlow` | `/finance/reports/cash-flow` | Relatório de fluxo de caixa |
+| FinanceReportEndpoints | `byCategory` | `/finance/reports/by-category` | Relatório por categoria |
+| FinanceReportEndpoints | `byCustomer` | `/finance/reports/by-customer` | Relatório por cliente |
+| FinanceReportEndpoints | `payables` | `/finance/reports/payables` | Relatório de contas a pagar |
+| FinanceReportEndpoints | `receivables` | `/finance/reports/receivables` | Relatório de contas a receber |
+| FinanceReportEndpoints | `paymentsReceived` | `/finance/reports/payments-received` | Relatório de pagamentos recebidos |
 
 ### Suprimentos/Estoque (17 arquivos)
 
 | Arquivo | Propriedade | Path | Descricao |
 |---------|-------------|------|-----------|
-| InventoryEndpoints | `list` | `/supply/inventory/transfer` | Listar transferencias de estoque |
-| InventoryEndpoints | `entries` | `/supply/inventory/entries` | Listar lancamentos de estoque |
-| InventoryEndpoints | `addOutEntry` | `/supply/inventory/out` | Lancamento de saida |
-| InventoryEndpoints | `addReceivingEntry` | `/supply/inventory/enter` | Lancamento de entrada |
-| InventoryEndpoints | `addBalanceEntry` | `/supply/inventory/balance` | Lancamento de saldo |
-| InventoryEndpoints | `addTransferEntry` | `/supply/inventory/transfer` | Transferencia entre depositos |
-| InventoryEndpoints | `warehouseDetails(idWarehouse)` | `/supply/inventory/{idWarehouse}` | Detalhes do deposito |
-| InventoryEndpoints | `productEntries(idProduct)` | `/supply/inventory/product/{idProduct}/entries` | Lancamentos do produto |
+| InventoryEndpoints | `list` | `/supply/inventory/transfer` | Listar transferências de estoque |
+| InventoryEndpoints | `entries` | `/supply/inventory/entries` | Listar lançamentos de estoque |
+| InventoryEndpoints | `addOutEntry` | `/supply/inventory/out` | Lançamento de saída |
+| InventoryEndpoints | `addReceivingEntry` | `/supply/inventory/enter` | Lançamento de entrada |
+| InventoryEndpoints | `addBalanceEntry` | `/supply/inventory/balance` | Lançamento de saldo |
+| InventoryEndpoints | `addTransferEntry` | `/supply/inventory/transfer` | Transferência entre depósitos |
+| InventoryEndpoints | `warehouseDetails(idWarehouse)` | `/supply/inventory/{idWarehouse}` | Detalhes do depósito |
+| InventoryEndpoints | `productEntries(idProduct)` | `/supply/inventory/product/{idProduct}/entries` | Lançamentos do produto |
 | InventoryEndpoints | `reverseBatch(sourceId)` | `/supply/inventory/reverse-batch/{sourceId}` | Reverter lote |
-| InventoryEndpoints | `launchBatchOut` | `/supply/inventory/launch-batch-out` | Lancamento de saida em lote |
-| InventoryEndpoints | `launchBatchIn` | `/supply/inventory/launch-batch-in` | Lancamento de entrada em lote |
-| InventoryCheckEndpoints | `listTasks` | `/supply/task/inventory/list` | Listar tarefas de inventario |
-| InventoryCheckEndpoints | `createTask` | `/supply/task/inventory/create` | Criar tarefa de inventario |
+| InventoryEndpoints | `launchBatchOut` | `/supply/inventory/launch-batch-out` | Lançamento de saída em lote |
+| InventoryEndpoints | `launchBatchIn` | `/supply/inventory/launch-batch-in` | Lançamento de entrada em lote |
+| InventoryCheckEndpoints | `listTasks` | `/supply/task/inventory/list` | Listar tarefas de inventário |
+| InventoryCheckEndpoints | `createTask` | `/supply/task/inventory/create` | Criar tarefa de inventário |
 | InventoryCheckEndpoints | `getTask(taskId)` | `/supply/task/inventory/{taskId}` | Detalhes da tarefa |
 | InventoryCheckEndpoints | `finishTask(taskId)` | `/supply/task/inventory/{taskId}/finish` | Finalizar tarefa |
 | InventoryCheckEndpoints | `cancelTask(taskId)` | `/supply/task/inventory/{taskId}/cancel` | Cancelar tarefa |
@@ -473,10 +488,10 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | InventoryCheckEndpoints | `addItem(taskId)` | `/supply/task/inventory/{taskId}/add` | Adicionar item a tarefa |
 | InventoryCheckEndpoints | `editItem(taskId, itemId)` | `/supply/task/inventory/{taskId}/edit/{itemId}` | Editar item da tarefa |
 | InventoryCheckEndpoints | `getItem(itemId)` | `/supply/task/inventory/item/{itemId}` | Detalhes do item |
-| InventoryCheckEndpoints | `getHistory(taskId)` | `/supply/task/inventory/{taskId}/history` | Historico da tarefa |
-| InventoryConfigEndpoints | `edit` | `/preferences/config/inventory` | Editar configuracao de estoque |
-| InventoryConfigEndpoints | `details` | `/preferences/config/inventory` | Detalhes da configuracao |
-| InventoryReserveEndpoints | `listWarehouseReserves` | `supply/reserve/list` | Listar reservas de deposito |
+| InventoryCheckEndpoints | `getHistory(taskId)` | `/supply/task/inventory/{taskId}/history` | Histórico da tarefa |
+| InventoryConfigEndpoints | `edit` | `/preferences/config/inventory` | Editar configuração de estoque |
+| InventoryConfigEndpoints | `details` | `/preferences/config/inventory` | Detalhes da configuração |
+| InventoryReserveEndpoints | `listWarehouseReserves` | `supply/reserve/list` | Listar reservas de depósito |
 | InventoryTaskEndpoints | `list` | `/supply/task/list` | Listar tarefas de estoque |
 | InventoryTaskEndpoints | `getDetails(id)` | `/supply/task/{id}` | Detalhes da tarefa |
 | InventoryTaskEndpoints | `itemList(taskId)` | `/supply/task/{taskId}/item/list` | Listar itens da tarefa |
@@ -490,25 +505,25 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | BuyOrderEndpoints | `nextSequenceNumber` | `/supply/buy-order/next-sequence` | Proximo numero sequencial |
 | BuyOrderEndpoints | `approveBatch` | `/supply/buy-order/approve-batch` | Aprovar pedidos em lote |
 | BuyOrderEndpoints | `cancelBatch` | `/supply/buy-order/cancel-batch` | Cancelar pedidos em lote |
-| BuyOrderConfigEndpoints | `edit` | `/preferences/config/buy-order` | Editar configuracao de compras |
-| BuyOrderConfigEndpoints | `details` | `/preferences/config/buy-order` | Detalhes da configuracao |
+| BuyOrderConfigEndpoints | `edit` | `/preferences/config/buy-order` | Editar configuração de compras |
+| BuyOrderConfigEndpoints | `details` | `/preferences/config/buy-order` | Detalhes da configuração |
 | PicklistEndpoints | `list` | `/supply/pick-list/list` | Listar picklists |
 | PicklistEndpoints | `add` | `/supply/pick-list/add` | Criar picklist |
 | PicklistEndpoints | `getPicklist(id)` | `/supply/pick-list/{id}` | Detalhes da picklist |
 | PicklistEndpoints | `delete(id)` | `/supply/pick-list/del/{id}` | Excluir picklist |
 | PicklistEndpoints | `deleteBatch` | `/supply/pick-list/del/batch` | Excluir em lote |
-| PicklistEndpoints | `editDescription(id)` | `/supply/pick-list/edit-description/{id}` | Editar descricao |
+| PicklistEndpoints | `editDescription(id)` | `/supply/pick-list/edit-description/{id}` | Editar descrição |
 | PicklistEndpoints | `itemList(picklistId)` | `/supply/pick-list/{picklistId}/item/list` | Listar itens da picklist |
 | PicklistEndpoints | `addItem(picklistId)` | `/supply/pick-list/{picklistId}/add-item` | Adicionar item |
 | PicklistEndpoints | `editItem(itemId)` | `/supply/pick-list/edit-item/{itemId}` | Editar item |
 | PicklistEndpoints | `getPicklistItem(id)` | `/supply/pick-list/item/{id}` | Detalhes do item |
 | PicklistEndpoints | `deleteItem(itemId)` | `/supply/pick-list/del-item/{itemId}` | Excluir item |
-| WarehouseEndpoints | `list` | `/preferences/warehouse/list` | Listar depositos |
-| WarehouseEndpoints | `add` | `/preferences/warehouse/add` | Adicionar deposito |
-| WarehouseEndpoints | `edit(id)` | `/preferences/warehouse/edit/{id}` | Editar deposito |
-| WarehouseEndpoints | `details(id)` | `/preferences/warehouse/{id}` | Detalhes do deposito |
-| WarehouseEndpoints | `delete(id)` | `/preferences/warehouse/del/{id}` | Excluir deposito |
-| WarehouseEndpoints | `toggleStatus(id)` | `/preferences/warehouse/status/{id}` | Ativar/desativar deposito |
+| WarehouseEndpoints | `list` | `/preferences/warehouse/list` | Listar depósitos |
+| WarehouseEndpoints | `add` | `/preferences/warehouse/add` | Adicionar depósito |
+| WarehouseEndpoints | `edit(id)` | `/preferences/warehouse/edit/{id}` | Editar depósito |
+| WarehouseEndpoints | `details(id)` | `/preferences/warehouse/{id}` | Detalhes do depósito |
+| WarehouseEndpoints | `delete(id)` | `/preferences/warehouse/del/{id}` | Excluir depósito |
+| WarehouseEndpoints | `toggleStatus(id)` | `/preferences/warehouse/status/{id}` | Ativar/desativar depósito |
 | WarehouseEndpoints | `deleteBatch` | `/preferences/warehouse/del/batch` | Excluir em lote |
 | WarehouseEndpoints | `toggleStatusBatch` | `/preferences/warehouse/status/batch` | Ativar/desativar em lote |
 | WarehouseBatchEndpoints | `list` | `/supply/batch/list` | Listar lotes |
@@ -523,20 +538,20 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | ProductInventoryControlEndpoints | `getDetails(id)` | `/supply/product-inventory/{id}` | Detalhes do controle |
 | ProductInventoryControlEndpoints | `productDetails` | `/supply/product-inventory/product-detail` | Detalhes do produto no estoque |
 | ProductInventoryControlEndpoints | `alerts(productId)` | `/supply/product-inventory/{productId}/alerts` | Alertas do produto |
-| ProductInventoryControlEndpoints | `movementHistory(productId)` | `/supply/product-inventory/{productId}/movement-history` | Historico de movimentacao |
+| ProductInventoryControlEndpoints | `movementHistory(productId)` | `/supply/product-inventory/{productId}/movement-history` | Histórico de movimentação |
 | ProductLossReportEndpoints | `list` | `/supply/reports/product-loss/list` | Listar perdas de produto |
 | ProductLossReportEndpoints | `listProduct(productId)` | `/supply/reports/product-loss/{productId}/list` | Perdas por produto |
 | ProductLossReportEndpoints | `productLossDetails(productId)` | `/supply/reports/product-loss/{productId}` | Detalhes da perda |
-| SeparationConfigEndpoints | `edit` | `/preferences/config/separation` | Editar configuracao de separacao |
-| SeparationConfigEndpoints | `details` | `/preferences/config/separation` | Detalhes da configuracao |
-| SeparationTaskEndpoints | `list` | `/supply/task/separation/list` | Listar tarefas de separacao |
+| SeparationConfigEndpoints | `edit` | `/preferences/config/separation` | Editar configuração de separação |
+| SeparationConfigEndpoints | `details` | `/preferences/config/separation` | Detalhes da configuração |
+| SeparationTaskEndpoints | `list` | `/supply/task/separation/list` | Listar tarefas de separação |
 | SeparationTaskEndpoints | `add(pickListId)` | `/supply/task/separation/add/{pickListId}` | Criar tarefa a partir de picklist |
 | SeparationTaskEndpoints | `taskSeparationDetails(taskId)` | `/supply/task/separation/{taskId}` | Detalhes da tarefa |
 | SeparationTaskEndpoints | `finish(separationId)` | `/supply/task/separation/{separationId}/finish` | Finalizar tarefa |
 | SeparationTaskEndpoints | `cancel(separationId)` | `/supply/task/separation/{separationId}/cancel` | Cancelar tarefa |
 | SeparationTaskEndpoints | `itemList(taskId)` | `/supply/task/separation/{taskId}/item/list` | Listar itens da tarefa |
 | SeparationTaskEndpoints | `editItem(separationId, itemId)` | `/supply/task/separation/{separationId}/edit/{itemId}` | Editar item |
-| SeparationTaskEndpoints | `taskSeparationHistory(taskId)` | `/supply/task/separation/{taskId}/history` | Historico da tarefa |
+| SeparationTaskEndpoints | `taskSeparationHistory(taskId)` | `/supply/task/separation/{taskId}/history` | Histórico da tarefa |
 | SeparationTaskEndpoints | `taskSeparationItemDetails(itemId)` | `/supply/task/separation/item/{itemId}` | Detalhes do item |
 | SupplyTaskEndpoints | `list` | `/supply/task/supply/list` | Listar tarefas de abastecimento |
 | SupplyTaskEndpoints | `add(pickListId)` | `/supply/task/supply/add/{pickListId}` | Criar tarefa a partir de picklist |
@@ -545,23 +560,25 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | SupplyTaskEndpoints | `cancel(supplyId)` | `/supply/task/supply/{supplyId}/cancel` | Cancelar tarefa |
 | SupplyTaskEndpoints | `itemList(taskId)` | `/supply/task/supply/{taskId}/item/list` | Listar itens da tarefa |
 | SupplyTaskEndpoints | `editItem(supplyId, itemId)` | `/supply/task/supply/{supplyId}/edit/{itemId}` | Editar item |
-| SupplyTaskEndpoints | `taskSupplyHistory(taskId)` | `/supply/task/supply/{taskId}/history` | Historico da tarefa |
+| SupplyTaskEndpoints | `taskSupplyHistory(taskId)` | `/supply/task/supply/{taskId}/history` | Histórico da tarefa |
 | SupplyTaskEndpoints | `taskSupplyItemDetails(itemId)` | `/supply/task/supply/item/{itemId}` | Detalhes do item |
-| SupplyReportEndpoints | `inventoryInOut` | `/supply/reports/inventory/in-out` | Relatorio de entradas e saidas |
-| SupplyReportEndpoints | `inventoryBalance` | `/supply/reports/inventory/balance` | Relatorio de saldo |
-| SupplyReportEndpoints | `inventoryBiggestMovement` | `/supply/reports/inventory/biggest-movement` | Maiores movimentacoes |
-| SupplyReportEndpoints | `inventoryWithoutMovement` | `/supply/reports/inventory/without-movement` | Produtos sem movimentacao |
-| SupplyReportEndpoints | `inventoryBelowMinimum` | `/supply/reports/inventory/below-minimum` | Estoque abaixo do minimo |
-| SupplyReportEndpoints | `inventoryFinanceOverview` | `/supply/reports/inventory/finance-overview` | Visao financeira do estoque |
-| SupplyReportEndpoints | `inventoryUsage` | `/supply/reports/inventory/usage` | Relatorio de uso do estoque |
-| SupplyReportEndpoints | `nfeInOperation` | `/supply/reports/nfe-in/operation` | Relatorio de operacoes NF-e entrada |
-| SupplyReportEndpoints | `nfeInSupplier` | `/supply/reports/nfe-in/supplier` | Relatorio por fornecedor |
-| SupplyReportEndpoints | `nfeInProduct` | `/supply/reports/nfe-in/product` | Relatorio por produto |
+| SupplyReportEndpoints | `inventoryInOut` | `/supply/reports/inventory/in-out` | Relatório de entradas e saídas |
+| SupplyReportEndpoints | `inventoryBalance` | `/supply/reports/inventory/balance` | Relatório de saldo |
+| SupplyReportEndpoints | `inventoryBiggestMovement` | `/supply/reports/inventory/biggest-movement` | Maiores movimentações |
+| SupplyReportEndpoints | `inventoryWithoutMovement` | `/supply/reports/inventory/without-movement` | Produtos sem movimentação |
+| SupplyReportEndpoints | `inventoryBelowMinimum` | `/supply/reports/inventory/below-minimum` | Estoque abaixo do mínimo |
+| SupplyReportEndpoints | `inventoryFinanceOverview` | `/supply/reports/inventory/finance-overview` | Visão financeira do estoque |
+| SupplyReportEndpoints | `inventoryUsage` | `/supply/reports/inventory/usage` | Relatório de uso do estoque |
+| SupplyReportEndpoints | `nfeInOperation` | `/supply/reports/nfe-in/operation` | Relatório de operações NF-e entrada |
+| SupplyReportEndpoints | `nfeInSupplier` | `/supply/reports/nfe-in/supplier` | Relatório por fornecedor |
+| SupplyReportEndpoints | `nfeInProduct` | `/supply/reports/nfe-in/product` | Relatório por produto |
 | SupplyReportEndpoints | `nfeInProgress` | `/supply/reports/nfe-in/progress` | Progresso de NF-e entrada |
-| SupplyReportEndpoints | `nfeInProductSupplier` | `/supply/reports/nfe-in/product-supplier` | Relatorio produto-fornecedor |
-| SupplyReportEndpoints | `buyOrder` | `/supply/reports/buy-order` | Relatorio de pedidos de compra |
-| SupplyReportEndpoints | `productLoss` | `/supply/reports/product-loss/list` | Relatorio de perdas |
-| SupplyReportEndpoints | `purchaseSuggestion` | `/supply/reports/purchase-suggestion` | Sugestao de compra |
+| SupplyReportEndpoints | `nfeInProductSupplier` | `/supply/reports/nfe-in/product-supplier` | Relatório produto-fornecedor |
+| SupplyReportEndpoints | `buyOrder` | `/supply/reports/buy-order` | Relatório de pedidos de compra |
+| SupplyReportEndpoints | `productLoss` | `/supply/reports/product-loss/list` | Relatório de perdas |
+| SupplyReportEndpoints | `purchaseSuggestion` | `/supply/reports/purchase-suggestion` | Sugestão de compra |
+| SupplyReportEndpoints | `costOfGoodsSold` | `/supply/reports/inventory/cost-of-goods-sold` | Relatório de custo da mercadoria vendida |
+| SupplyReportEndpoints | `costOfGoodsSoldExport` | `/supply/reports/inventory/cost-of-goods-sold/export` | Exportação do custo da mercadoria vendida |
 | SupplierContactEndpoints | `list` | `/registrations/supplier/list` | Listar fornecedores |
 | SupplierContactEndpoints | `add` | `/registrations/supplier/add` | Adicionar fornecedor |
 | SupplierContactEndpoints | `edit(id)` | `/registrations/supplier/edit/{id}` | Editar fornecedor |
@@ -591,20 +608,20 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | NfeInEndpoints | `importXml` | `/supply/purchase-invoice/import/xml` | Importar XML |
 | NfeInEndpoints | `detailsByAccessKey(accessKey)` | `/supply/purchase-invoice/details/{accessKey}` | Detalhes por chave de acesso |
 | NfeInEndpoints | `importByAccessKey(accessKey)` | `/supply/purchase-invoice/import/access-key/{accessKey}` | Importar por chave de acesso |
-| NfeOutEndpoints | `list` | `/sales/sales-invoice/list` | Listar NF-e de saida |
-| NfeOutEndpoints | `add` | `/sales/sales-invoice/add` | Adicionar NF-e de saida |
-| NfeOutEndpoints | `edit(id)` | `/sales/sales-invoice/edit/{id}` | Editar NF-e de saida |
+| NfeOutEndpoints | `list` | `/sales/sales-invoice/list` | Listar NF-e de saída |
+| NfeOutEndpoints | `add` | `/sales/sales-invoice/add` | Adicionar NF-e de saída |
+| NfeOutEndpoints | `edit(id)` | `/sales/sales-invoice/edit/{id}` | Editar NF-e de saída |
 | NfeOutEndpoints | `details(id)` | `/sales/sales-invoice/{id}` | Detalhes da NF-e |
 | NfeOutEndpoints | `delete(id)` | `/sales/sales-invoice/del/{id}` | Excluir NF-e |
 | NfeOutEndpoints | `changeStatus(id)` | `/sales/sales-invoice/status/{id}` | Alterar status |
 | NfeOutEndpoints | `cancelStatus(id)` | `/sales/sales-invoice/status/{id}/cancel` | Cancelar status |
 | NfeOutEndpoints | `authorize(id)` | `/sales/sales-invoice/authorize/{id}` | Autorizar NF-e |
 | NfeOutEndpoints | `reissue(id)` | `/sales/sales-invoice/reissuance/{id}` | Reemitir NF-e |
-| NfeOutEndpoints | `launchInventory(idNfeOut)` | `/sales/sales-invoice/launch-inventory/{idNfeOut}` | Lancar no estoque |
-| NfeOutEndpoints | `transactionNature` | `/sales/sales-invoice/transaction-nature` | Natureza de operacao |
+| NfeOutEndpoints | `launchInventory(idNfeOut)` | `/sales/sales-invoice/launch-inventory/{idNfeOut}` | Lançar no estoque |
+| NfeOutEndpoints | `transactionNature` | `/sales/sales-invoice/transaction-nature` | Natureza de operação |
 | NfeOutEndpoints | `nextSequenceNumber` | `/sales/sales-invoice/next-sequence` | Proximo numero sequencial |
 | NfeOutEndpoints | `defaultSeriesNumber` | `/sales/sales-invoice/default-series-number` | Numero de serie padrao |
-| NfeOutEndpoints | `defaultTransactionNature` | `/sales/sales-invoice/default-transaction-nature` | Natureza de operacao padrao |
+| NfeOutEndpoints | `defaultTransactionNature` | `/sales/sales-invoice/default-transaction-nature` | Natureza de operação padrao |
 | NfceEndpoints | `list` | `/sales/nfce/list` | Listar NFC-e |
 | NfceEndpoints | `add` | `/sales/nfce/add` | Adicionar NFC-e |
 | NfceEndpoints | `edit(id)` | `/sales/nfce/edit/{id}` | Editar NFC-e |
@@ -615,38 +632,38 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | NfceEndpoints | `authorize(id)` | `/sales/nfce/authorize/{id}` | Autorizar NFC-e |
 | NfceEndpoints | `reissue(id)` | `/sales/nfce/reissuance/{id}` | Reemitir NFC-e |
 | NfceEndpoints | `batchReissue` | `/sales/nfce/batch-reissuance` | Reemitir em lote |
-| NfceEndpoints | `transactionNature` | `/sales/nfce/transaction-nature` | Natureza de operacao |
+| NfceEndpoints | `transactionNature` | `/sales/nfce/transaction-nature` | Natureza de operação |
 | NfceEndpoints | `nextSequenceNumber` | `/sales/nfce/next-sequence` | Proximo numero sequencial |
 | NfceEndpoints | `defaultSeriesNumber` | `/sales/nfce/default-series-number` | Numero de serie padrao |
-| NfceEndpoints | `defaultTransactionNature` | `/sales/nfce/default-transaction-nature` | Natureza de operacao padrao |
+| NfceEndpoints | `defaultTransactionNature` | `/sales/nfce/default-transaction-nature` | Natureza de operação padrao |
 | NfceEndpoints | `printDanfe(id)` | `/sales/nfce/print/{id}` | Imprimir DANFE |
-| NfceDisableEndpoints | `list` | `/sales/nfce-disable/list` | Listar inutilizacoes |
-| NfceDisableEndpoints | `add` | `/sales/nfce-disable/add` | Adicionar inutilizacao |
-| NfceDisableEndpoints | `details(id)` | `/sales/nfce-disable/{id}` | Detalhes da inutilizacao |
-| NfceDisableEndpoints | `delete(id)` | `/sales/nfce-disable/del/{id}` | Excluir inutilizacao |
-| NfceDisableEndpoints | `cancel(id)` | `/sales/nfce-disable/cancel/{id}` | Cancelar inutilizacao |
-| NfeConfigEndpoints | `edit` | `/preferences/config/nfe` | Editar configuracao NF-e |
-| NfeConfigEndpoints | `details` | `/preferences/config/nfe` | Detalhes da configuracao |
-| NfeConfigEndpoints | `resetSequenceNumber` | `/preferences/config/nfe/reset-sequence-number` | Resetar numero sequencial |
-| NfeDistributionEndpoints | `status` | `/supply/distribution/status` | Status da distribuicao |
+| NfceDisableEndpoints | `list` | `/sales/nfce-disable/list` | Listar inutilizações |
+| NfceDisableEndpoints | `add` | `/sales/nfce-disable/add` | Adicionar inutilização |
+| NfceDisableEndpoints | `details(id)` | `/sales/nfce-disable/{id}` | Detalhes da inutilização |
+| NfceDisableEndpoints | `delete(id)` | `/sales/nfce-disable/del/{id}` | Excluir inutilização |
+| NfceDisableEndpoints | `cancel(id)` | `/sales/nfce-disable/cancel/{id}` | Cancelar inutilização |
+| NfeConfigEndpoints | `edit` | `/preferences/config/nfe` | Editar configuração NF-e |
+| NfeConfigEndpoints | `details` | `/preferences/config/nfe` | Detalhes da configuração |
+| NfeConfigEndpoints | `resetSequenceNumber` | `/preferences/config/nfe/reset-sequence-number` | Resetar número sequencial |
+| NfeDistributionEndpoints | `status` | `/supply/distribution/status` | Status da distribuição |
 | NfeDistributionEndpoints | `list` | `/supply/distribution/list` | Listar documentos |
 | NfeDistributionEndpoints | `import(id)` | `/supply/distribution/documents/{id}/import` | Importar documento |
 | NfeDistributionEndpoints | `changeStatus(id)` | `/supply/distribution/status/{id}` | Alterar status |
-| TransactionNatureEndpoints | `list` | `/preferences/transaction-nature/list` | Listar naturezas de operacao |
+| TransactionNatureEndpoints | `list` | `/preferences/transaction-nature/list` | Listar naturezas de operação |
 | TransactionNatureEndpoints | `add` | `/preferences/transaction-nature/add` | Adicionar natureza |
 | TransactionNatureEndpoints | `edit(id)` | `/preferences/transaction-nature/edit/{id}` | Editar natureza |
 | TransactionNatureEndpoints | `details(id)` | `/preferences/transaction-nature/{id}` | Detalhes da natureza |
 | TransactionNatureEndpoints | `delete(id)` | `/preferences/transaction-nature/del/{id}` | Excluir natureza |
 | TransactionNatureEndpoints | `toggleStatus(id)` | `/preferences/transaction-nature/status/{id}` | Ativar/desativar natureza |
-| TransactionNatureEndpoints | `setDefault(id)` | `/preferences/transaction-nature/default/{id}` | Definir natureza padrao |
+| TransactionNatureEndpoints | `setDefault(id)` | `/preferences/transaction-nature/default/{id}` | Definir natureza padrão |
 | TransactionNatureEndpoints | `deleteBatch` | `/preferences/transaction-nature/del/batch` | Excluir em lote |
 | TransactionNatureEndpoints | `toggleStatusBatch` | `/preferences/transaction-nature/status/batch` | Ativar/desativar em lote |
-| TaxScenarioEndpoints | `list` | `/preferences/tax-scenario/list` | Listar cenarios tributarios |
-| TaxScenarioEndpoints | `add` | `/preferences/tax-scenario/add` | Adicionar cenario |
-| TaxScenarioEndpoints | `edit(id)` | `/preferences/tax-scenario/edit/{id}` | Editar cenario |
-| TaxScenarioEndpoints | `details(id)` | `/preferences/tax-scenario/{id}` | Detalhes do cenario |
-| TaxScenarioEndpoints | `delete(id)` | `/preferences/tax-scenario/del/{id}` | Excluir cenario |
-| TaxScenarioEndpoints | `toggleStatus(id)` | `/preferences/tax-scenario/status/{id}` | Ativar/desativar cenario |
+| TaxScenarioEndpoints | `list` | `/preferences/tax-scenario/list` | Listar cenários tributários |
+| TaxScenarioEndpoints | `add` | `/preferences/tax-scenario/add` | Adicionar cenário |
+| TaxScenarioEndpoints | `edit(id)` | `/preferences/tax-scenario/edit/{id}` | Editar cenário |
+| TaxScenarioEndpoints | `details(id)` | `/preferences/tax-scenario/{id}` | Detalhes do cenário |
+| TaxScenarioEndpoints | `delete(id)` | `/preferences/tax-scenario/del/{id}` | Excluir cenário |
+| TaxScenarioEndpoints | `toggleStatus(id)` | `/preferences/tax-scenario/status/{id}` | Ativar/desativar cenário |
 | CfopEndpoints | `list` | `/preferences/cfop/list` | Listar CFOPs |
 | CfopEndpoints | `add` | `/preferences/cfop/add` | Adicionar CFOP |
 | CfopEndpoints | `edit(id)` | `/preferences/cfop/edit/{id}` | Editar CFOP |
@@ -685,13 +702,13 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | ClientContactEndpoints | `toggleStatus(id)` | `/registrations/client/status/{id}` | Ativar/desativar cliente |
 | ClientContactEndpoints | `deleteBatch` | `/registrations/client/del-batch` | Excluir em lote |
 | ClientContactEndpoints | `toggleStatusBatch` | `/registrations/client/status-batch` | Ativar/desativar em lote |
-| EmployeeContactEndpoints | `list` | `/registrations/employee/list` | Listar funcionarios |
-| EmployeeContactEndpoints | `add` | `/registrations/employee/add` | Adicionar funcionario |
-| EmployeeContactEndpoints | `edit(id)` | `/registrations/employee/edit/{id}` | Editar funcionario |
-| EmployeeContactEndpoints | `details(id)` | `/registrations/employee/{id}` | Detalhes do funcionario |
-| EmployeeContactEndpoints | `delete(id)` | `/registrations/employee/del/{id}` | Excluir funcionario |
-| EmployeeContactEndpoints | `toggleStatus(id)` | `/registrations/employee/status/{id}` | Ativar/desativar funcionario |
-| EmployeeContactEndpoints | `notificationAvailableList` | `/registrations/employee/notification/available/list` | Notificacoes disponiveis |
+| EmployeeContactEndpoints | `list` | `/registrations/employee/list` | Listar funcionários |
+| EmployeeContactEndpoints | `add` | `/registrations/employee/add` | Adicionar funcionário |
+| EmployeeContactEndpoints | `edit(id)` | `/registrations/employee/edit/{id}` | Editar funcionário |
+| EmployeeContactEndpoints | `details(id)` | `/registrations/employee/{id}` | Detalhes do funcionário |
+| EmployeeContactEndpoints | `delete(id)` | `/registrations/employee/del/{id}` | Excluir funcionário |
+| EmployeeContactEndpoints | `toggleStatus(id)` | `/registrations/employee/status/{id}` | Ativar/desativar funcionário |
+| EmployeeContactEndpoints | `notificationAvailableList` | `/registrations/employee/notification/available/list` | Notificações disponíveis |
 | EmployeeContactEndpoints | `deleteBatch` | `/registrations/employee/del-batch` | Excluir em lote |
 | EmployeeContactEndpoints | `toggleStatusBatch` | `/registrations/employee/status-batch` | Ativar/desativar em lote |
 | CommunityContactEndpoints | `list` | `/registrations/community/list` | Listar contatos da comunidade |
@@ -702,85 +719,85 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | CommunityContactEndpoints | `toggleStatus(id)` | `/registrations/community/status/{id}` | Ativar/desativar contato |
 | CommunityContactEndpoints | `deleteBatch` | `/registrations/community/del-batch` | Excluir em lote |
 | CommunityContactEndpoints | `toggleStatusBatch` | `/registrations/community/status-batch` | Ativar/desativar em lote |
-| AddressEndpoints | `details(cep)` | `/address/resolve-cep/{cep}` | Consultar endereco por CEP |
+| AddressEndpoints | `details(cep)` | `/address/resolve-cep/{cep}` | Consultar endereço por CEP |
 
 ### Sistema/Configuracao (10 arquivos)
 
 | Arquivo | Propriedade | Path | Descricao |
 |---------|-------------|------|-----------|
-| SystemEndpoints | `version` | `/system/version` | Versao do sistema |
+| SystemEndpoints | `version` | `/system/version` | Versão do sistema |
 | SystemEndpoints | `usage` | `/system/usage` | Uso do sistema |
-| SystemEndpoints | `owner` | `/system/owner` | Proprietario do sistema |
-| SystemEndpoints | `modules` | `/system/modules` | Modulos disponiveis |
+| SystemEndpoints | `owner` | `/system/owner` | Proprietário do sistema |
+| SystemEndpoints | `modules` | `/system/modules` | Módulos disponíveis |
 | SystemEndpoints | `plan` | `/system/plan` | Plano do sistema |
-| SystemEndpoints | `billing` | `/system/billing` | Cobranca do sistema |
+| SystemEndpoints | `billing` | `/system/billing` | Cobrança do sistema |
 | SystemTypeEndpoints | `list` | `/system-type/list` | Listar tipos de sistema |
 | SystemTypeEndpoints | `getSystemTypeByClassName(className)` | `/system-type/{className}` | Buscar tipo por classe |
 | CompanyInformationEndpoints | `edit` | `/preferences/company` | Editar dados da empresa |
 | CompanyInformationEndpoints | `details` | `/preferences/company` | Detalhes da empresa |
 | CertificateConfigEndpoints | `edit` | `/preferences/config/certificate` | Editar certificado digital |
 | CertificateConfigEndpoints | `details` | `/preferences/config/certificate` | Detalhes do certificado |
-| RegistrationConfigEndpoints | `edit` | `/preferences/config/registration` | Editar configuracao de cadastro |
-| RegistrationConfigEndpoints | `details` | `/preferences/config/registration` | Detalhes da configuracao |
-| UiConfigEndpoints | `edit` | `/preferences/config/ui` | Editar configuracao de interface |
-| UiConfigEndpoints | `details` | `/preferences/config/ui` | Detalhes da configuracao |
-| FilesPreferencesEndpoints | `edit` | `/preferences/config/file` | Editar preferencias de arquivos |
-| FilesPreferencesEndpoints | `details` | `/preferences/config/file` | Detalhes das preferencias |
-| CommunicationPreferencesEndpoints | `edit` | `/preferences/config/communication` | Editar preferencias de comunicacao |
-| CommunicationPreferencesEndpoints | `details` | `/preferences/config/communication` | Detalhes das preferencias |
-| CommunicationProviderEndpoints | `list` | `/preferences/communication-provider/list` | Listar provedores de comunicacao |
+| RegistrationConfigEndpoints | `edit` | `/preferences/config/registration` | Editar configuração de cadastro |
+| RegistrationConfigEndpoints | `details` | `/preferences/config/registration` | Detalhes da configuração |
+| UiConfigEndpoints | `edit` | `/preferences/config/ui` | Editar configuração de interface |
+| UiConfigEndpoints | `details` | `/preferences/config/ui` | Detalhes da configuração |
+| FilesPreferencesEndpoints | `edit` | `/preferences/config/file` | Editar preferências de arquivos |
+| FilesPreferencesEndpoints | `details` | `/preferences/config/file` | Detalhes das preferências |
+| CommunicationPreferencesEndpoints | `edit` | `/preferences/config/communication` | Editar preferências de comunicação |
+| CommunicationPreferencesEndpoints | `details` | `/preferences/config/communication` | Detalhes das preferências |
+| CommunicationProviderEndpoints | `list` | `/preferences/communication-provider/list` | Listar provedores de comunicação |
 | CommunicationProviderEndpoints | `add` | `/preferences/communication-provider/add` | Adicionar provedor |
 | CommunicationProviderEndpoints | `edit(id)` | `/preferences/communication-provider/edit/{id}` | Editar provedor |
 | CommunicationProviderEndpoints | `details(id)` | `/preferences/communication-provider/{id}` | Detalhes do provedor |
 | CommunicationProviderEndpoints | `delete(id)` | `/preferences/communication-provider/del/{id}` | Excluir provedor |
 | CommunicationProviderEndpoints | `toggleStatus(id)` | `/preferences/communication-provider/status/{id}` | Ativar/desativar provedor |
-| CommunicationProviderEndpoints | `listCommunicationProviderServices` | `/preferences/communication-provider/service/list` | Listar servicos de comunicacao |
-| SystemNotificationPreferencesEndpoints | `edit` | `/preferences/config/notification` | Editar preferencias de notificacao |
-| SystemNotificationPreferencesEndpoints | `details` | `/preferences/config/notification` | Detalhes das preferencias |
+| CommunicationProviderEndpoints | `listCommunicationProviderServices` | `/preferences/communication-provider/service/list` | Listar serviços de comunicação |
+| SystemNotificationPreferencesEndpoints | `edit` | `/preferences/config/notification` | Editar preferências de notificação |
+| SystemNotificationPreferencesEndpoints | `details` | `/preferences/config/notification` | Detalhes das preferências |
 
 ### Dashboard (3 arquivos)
 
 | Arquivo | Propriedade | Path | Descricao |
 |---------|-------------|------|-----------|
 | DashboardFinanceEndpoints | `totalBalance` | `/dashboard/finance/total-balance` | Saldo total |
-| DashboardFinanceEndpoints | `topPaymentMethods` | `/dashboard/finance/top-payment-methods/used` | Metodos de pagamento mais usados |
+| DashboardFinanceEndpoints | `topPaymentMethods` | `/dashboard/finance/top-payment-methods/used` | Métodos de pagamento mais usados |
 | DashboardFinanceEndpoints | `resume` | `/dashboard/finance/resume` | Resumo financeiro |
 | DashboardFinanceEndpoints | `highBalance` | `/dashboard/finance/high-balance` | Maiores saldos |
 | DashboardFinanceEndpoints | `growth` | `/dashboard/finance/growth` | Crescimento financeiro |
 | DashboardFinanceEndpoints | `cashFlow` | `/dashboard/finance/cash-flow` | Fluxo de caixa |
 | DashboardFinanceEndpoints | `billsToReceive` | `/dashboard/finance/bills-to-receive` | Contas a receber |
 | DashboardFinanceEndpoints | `billsToPay` | `/dashboard/finance/bills-to-pay` | Contas a pagar |
-| DashboardFinanceEndpoints | `receivablesAging` | `/dashboard/finance/receivables-aging` | Aging de recebiveis |
+| DashboardFinanceEndpoints | `receivablesAging` | `/dashboard/finance/receivables-aging` | Aging de recebíveis |
 | DashboardFinanceEndpoints | `profit` | `/dashboard/finance/profit` | Lucro |
-| DashboardOperationEndpoints | `warehouseTasks` | `/dashboard/operation/warehouse-task` | Tarefas de deposito |
+| DashboardOperationEndpoints | `warehouseTasks` | `/dashboard/operation/warehouse-task` | Tarefas de depósito |
 | DashboardOperationEndpoints | `highlights` | `/dashboard/operation/highlights` | Destaques operacionais |
 | DashboardOperationEndpoints | `expiringProduct` | `/dashboard/operation/expiring-product` | Produtos vencendo |
 | DashboardOperationEndpoints | `productLoss` | `/dashboard/operation/product-loss` | Perdas de produto |
 | DashboardOperationEndpoints | `posAvailability` | `/dashboard/operation/pos-availability` | Disponibilidade de PDV |
-| DashboardSalesEndpoints | `topPaymentMethodsUsed` | `/dashboard/sales/top-payment-methods/used` | Metodos de pagamento mais usados |
-| DashboardSalesEndpoints | `topPaymentMethodsReceived` | `/dashboard/sales/top-payment-methods/received` | Metodos mais recebidos |
+| DashboardSalesEndpoints | `topPaymentMethodsUsed` | `/dashboard/sales/top-payment-methods/used` | Métodos de pagamento mais usados |
+| DashboardSalesEndpoints | `topPaymentMethodsReceived` | `/dashboard/sales/top-payment-methods/received` | Métodos mais recebidos |
 | DashboardSalesEndpoints | `resume` | `/dashboard/sales/resume` | Resumo de vendas |
-| DashboardSalesEndpoints | `peakHours` | `/dashboard/sales/peak-hours` | Horarios de pico |
+| DashboardSalesEndpoints | `peakHours` | `/dashboard/sales/peak-hours` | Horários de pico |
 | DashboardSalesEndpoints | `orders` | `/dashboard/sales/orders` | Pedidos |
 | DashboardSalesEndpoints | `bestSellersProducts` | `/dashboard/sales/best-sellers/products` | Produtos mais vendidos |
 | DashboardSalesEndpoints | `bestSellersCategories` | `/dashboard/sales/best-sellers/categories` | Categorias mais vendidas |
-| DashboardSalesEndpoints | `averageTicket` | `/dashboard/sales/average-ticket` | Ticket medio |
+| DashboardSalesEndpoints | `averageTicket` | `/dashboard/sales/average-ticket` | Ticket médio |
 
 ### Outros (12 arquivos)
 
 | Arquivo | Propriedade | Path | Descricao |
 |---------|-------------|------|-----------|
-| HomeEndpoints | `setupGuide` | `/home/setup-guide` | Guia de configuracao |
-| HomeEndpoints | `announcements` | `/home/announcements` | Anuncios |
-| HomeEndpoints | `news` | `/home/news` | Novidades |
-| HomeEndpoints | `modules` | `/home/modules` | Modulos disponiveis |
+| HomeEndpoints | `setupGuide` | `/home/setup-guide` | Guia de configuração |
+| HomeEndpoints | `announcements` | `/home/announcements` | Anúncios |
+| HomeEndpoints | `news` | `/home/news` | Notícias |
+| HomeEndpoints | `modules` | `/home/modules` | Módulos disponíveis |
 | HomeEndpoints | `dismissFirstAccess` | `/account/first-access` | Dispensar primeiro acesso |
 | ScheduleEndpoints | `list` | `/schedule/list` | Listar agendamentos |
 | ScheduleEndpoints | `add` | `/schedule/add` | Criar agendamento |
 | ScheduleEndpoints | `edit(id)` | `/schedule/edit/{id}` | Editar agendamento |
 | ScheduleEndpoints | `details(id)` | `/schedule/{id}` | Detalhes do agendamento |
 | ScheduleEndpoints | `delete(id)` | `/schedule/del/{id}` | Excluir agendamento |
-| SetupEndpoints | `setup` | `/setup` | Configuracao inicial |
+| SetupEndpoints | `setup` | `/setup` | Configuração inicial |
 | SetupEndpoints | `setLogo` | `/setup/logo` | Definir logotipo |
 | TagEndpoints | `listAll` | `/preferences/tag/list-all` | Listar todas as tags |
 | TagEndpoints | `add` | `/preferences/tag/add` | Adicionar tag |
@@ -805,14 +822,14 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | TelemetryEndpoints | `posList` | `/telemetry/pos/list` | Listar PDVs |
 | TelemetryEndpoints | `alerts` | `telemetry/alert/list` | Listar alertas |
 | TelemetryEndpoints | `resume` | `/telemetry/resume` | Resumo de telemetria |
-| TelemetryEndpoints | `posHealth` | `/telemetry/pos-health` | Saude dos PDVs |
+| TelemetryEndpoints | `posHealth` | `/telemetry/pos-health` | Saúde dos PDVs |
 | TerminalEndpoints | `list` | `/registrations/terminal/list` | Listar terminais |
 | TerminalEndpoints | `add` | `/registrations/terminal/add` | Adicionar terminal |
 | TerminalEndpoints | `edit(id)` | `/registrations/terminal/edit/{id}` | Editar terminal |
 | TerminalEndpoints | `details(id)` | `/registrations/terminal/{id}` | Detalhes do terminal |
 | TerminalEndpoints | `delete(id)` | `/registrations/terminal/del/{id}` | Excluir terminal |
 | TerminalEndpoints | `editPassword(id)` | `/registrations/terminal/edit-password/{id}` | Alterar senha do terminal |
-| TerminalEndpoints | `forceReboot(id)` | `/registrations/terminal/{id}/force-reboot` | Forcar reinicializacao |
+| TerminalEndpoints | `forceReboot(id)` | `/registrations/terminal/{id}/force-reboot` | Forçar reinicialização |
 | TerminalEndpoints | `deleteBatch` | `/registrations/terminal/del-batch` | Excluir em lote |
 | PointOfSaleEndpoints | `list` | `/registrations/pos/list` | Listar pontos de venda |
 | PointOfSaleEndpoints | `add` | `/registrations/pos/add` | Adicionar ponto de venda |
@@ -829,21 +846,25 @@ O ERP possui **90 arquivos de endpoints** organizados em 11 dominios. A seguir, 
 | FileManagerEndpoints | `find(id)` | `/file-manager/{id}` | Buscar arquivo |
 | FileManagerEndpoints | `delete(id)` | `/file-manager/del/{id}` | Excluir arquivo |
 | FileManagerEndpoints | `systemStorageDetails` | `/file-manager/system-store-details` | Detalhes do armazenamento |
-| NotificationsEndpoints | `list` | `/notification/list` | Listar notificacoes |
-| NotificationsEndpoints | `add` | `/notification/add` | Criar notificacao |
-| NotificationsEndpoints | `edit(id)` | `/notification/edit/{id}` | Editar notificacao |
-| NotificationsEndpoints | `details(id)` | `/notification/{id}` | Detalhes da notificacao |
-| NotificationsEndpoints | `delete(id)` | `/notification/del/{id}` | Excluir notificacao |
+| NotificationsEndpoints | `list` | `/notification/list` | Listar notificações |
+| NotificationsEndpoints | `add` | `/notification/add` | Criar notificação |
+| NotificationsEndpoints | `edit(id)` | `/notification/edit/{id}` | Editar notificação |
+| NotificationsEndpoints | `details(id)` | `/notification/{id}` | Detalhes da notificação |
+| NotificationsEndpoints | `delete(id)` | `/notification/del/{id}` | Excluir notificação |
 | NotificationsEndpoints | `read(id)` | `/notification/read/{id}` | Marcar como lida |
-| NotificationsEndpoints | `unread(id)` | `/notification/unread/{id}` | Marcar como nao lida |
+| NotificationsEndpoints | `unread(id)` | `/notification/unread/{id}` | Marcar como não lida |
 | NotificationsEndpoints | `readAll` | `/notification/read/all` | Marcar todas como lidas |
-| NotificationsEndpoints | `stream` | `/notification/stream` | Stream de notificacoes (SSE) |
-| BarcodeNotFoundEndpoints | `list` | `/sales/reports/barcode-not-found` | Listar codigos de barras nao encontrados |
+| NotificationsEndpoints | `stream` | `/notification/stream` | Stream de notificações (SSE) |
+| BarcodeNotFoundEndpoints | `list` | `/sales/reports/barcode-not-found` | Listar códigos de barras não encontrados |
 | BarcodeNotFoundEndpoints | `addToPlanogram` | `/sales/reports/barcode-not-found/add-to-planogram` | Adicionar ao planograma |
+| AgentEndpoints | `chat` | `/agent/chat` | Chat do agente |
+| AgentEndpoints | `chatStream` | `/agent/chat/stream` | Chat em streaming do agente |
+| AgentEndpoints | `conversations` | `/agent/conversations` | Listar conversas do agente |
+| AgentEndpoints | `conversationMessages(conversationId)` | `/agent/conversations/{conversationId}/messages` | Mensagens de uma conversa |
 
 ## Resumo
 
-O ERP Despensinha possui **90 arquivos de endpoints** distribuidos em 11 dominios:
+O ERP Despensinha possui **90 arquivos de endpoints** distribuídos em 11 domínios:
 
 | Dominio | Arquivos | Endpoints |
 |---------|----------|-----------|
@@ -852,12 +873,12 @@ O ERP Despensinha possui **90 arquivos de endpoints** distribuidos em 11 dominio
 | Catalogo | 5 | 46 |
 | Vendas | 7 | 45 |
 | Financeiro | 14 | 96 |
-| Suprimentos/Estoque | 17 | 105 |
+| Suprimentos/Estoque | 17 | 107 |
 | NFe/Fiscal | 11 | 85 |
 | Contatos | 5 | 30 |
 | Sistema/Configuracao | 10 | 29 |
 | Dashboard | 3 | 23 |
-| Outros | 12 | 62 |
-| **Total** | **90** | **571** |
+| Outros | 12 | 64 |
+| **Total** | **90** | **575** |
 
-Todos os endpoints seguem o padrao de objetos constantes exportados, com paths estaticos para operacoes sem parametros e arrow functions para paths dinamicos. Os wrappers tipados em `axios.ts` garantem que todas as chamadas retornem `ApiResponse<T>`, mantendo consistencia na camada de comunicacao.
+Todos os endpoints seguem o padrão de objetos constantes exportados, com paths estáticos para operações sem parâmetros e arrow functions para paths dinâmicos. Os wrappers tipados em `axios.ts` garantem que todas as chamadas retornem `ApiResponse<T>`, mantendo consistência na camada de comunicação. Endpoints que utilizam `responseType` binário ou em streaming retornam o payload cru e são tratados sem o envelope padrão da API.
